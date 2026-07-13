@@ -27,9 +27,10 @@ final class LumaTests: XCTestCase {
     func testTemporaryConversationIsNotStored() {
         let state = AppState()
         let countBefore = state.conversations.count
-        state.startNewConversation(temporary: true)
+        let id = state.startNewConversation(temporary: true)
         XCTAssertEqual(state.conversations.count, countBefore)
-        XCTAssertTrue(state.isTemporaryChatActive)
+        XCTAssertEqual(state.temporaryConversation?.id, id)
+        XCTAssertEqual(state.conversation(id: id)?.id, id)
     }
 
     func testIntelligenceModeHasFourCases() {
