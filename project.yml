@@ -1,0 +1,119 @@
+name: Luma
+options:
+  bundleIdPrefix: com.makrsas.luma
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  usesTabs: false
+  indentWidth: 4
+  tabWidth: 4
+
+settings:
+  base:
+    SWIFT_VERSION: 5.0
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_PREVIEWS: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+
+targets:
+  Luma:
+    type: application
+    platform: iOS
+    sources:
+      - path: Luma
+    resources:
+      - path: Luma/Resources
+    info:
+      path: Luma/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Luma
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSCalendarsUsageDescription: "Luma использует календарь только для инструментов, которые вы явно разрешите."
+        NSContactsUsageDescription: "Luma использует контакты только для инструментов, которые вы явно разрешите."
+        NSPhotoLibraryUsageDescription: "Luma использует фото только для инструментов, которые вы явно разрешите."
+        NSRemindersUsageDescription: "Luma использует напоминания только для инструментов, которые вы явно разрешите."
+        NSUserNotificationsUsageDescription: "Luma показывает локальные уведомления о статусе выполнения задач."
+        NSSupportsLiveActivities: true
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - luma
+            CFBundleURLName: com.makrsas.luma
+      entitlements:
+        path: Luma/Resources/Luma.entitlements
+        properties:
+          com.apple.security.application-groups:
+            - group.com.makrsas.luma
+    entitlements:
+      path: Luma/Resources/Luma.entitlements
+    dependencies:
+      - target: LumaWidgetsExtension
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.makrsas.luma
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: YES
+
+  LumaWidgetsExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LumaWidgets
+      - path: Luma/Shared/LumaActivityAttributes.swift
+        group: Shared
+      - path: Luma/DesignSystem
+        group: Shared
+    info:
+      path: LumaWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Luma Live Activity
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: LumaWidgets/LumaWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.makrsas.luma
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.makrsas.luma.widgets
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        SKIP_INSTALL: NO
+
+  LumaTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: LumaTests
+    dependencies:
+      - target: Luma
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.makrsas.luma.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Luma:
+    build:
+      targets:
+        Luma: all
+        LumaWidgetsExtension: all
+        LumaTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - LumaTests
+    archive:
+      config: Release

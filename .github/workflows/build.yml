@@ -1,0 +1,103 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest available Xcode
+        run: |
+          set -eo pipefail
+          echo "Available Xcode installs:"
+          ls /Applications | grep -i '^Xcode.*\.app$' || true
+          LATEST_XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "Selecting: $LATEST_XCODE"
+          sudo xcode-select -s "$LATEST_XCODE"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (Debug, no code signing)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Luma.xcodeproj \
+            -scheme Luma \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Luma.xcodeproj \
+            -scheme Luma \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Archive (Release, no code signing)
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Luma.xcodeproj \
+            -scheme Luma \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Luma.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Package unsigned IPA
+        run: |
+          set -eo pipefail
+          APP_PATH="build/Luma.xcarchive/Products/Applications/Luma.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "::error::Archived .app not found at $APP_PATH"
+            exit 1
+          fi
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/
+          cd build
+          zip -r -y Luma-unsigned.ipa Payload
+          cd ..
+          echo "Created build/Luma-unsigned.ipa"
+
+      - name: Upload IPA artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Luma-unsigned-ipa
+          path: build/Luma-unsigned.ipa
+          retention-days: 30
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build/
+            ~/Library/Logs/DiagnosticReports
+          retention-days: 14

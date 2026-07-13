@@ -1,0 +1,67 @@
+name: Release Unsigned IPA
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Build and publish unsigned IPA
+    runs-on: macos-15
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest available Xcode
+        run: |
+          set -eo pipefail
+          LATEST_XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$LATEST_XCODE"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Archive (Release, no code signing)
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Luma.xcodeproj \
+            -scheme Luma \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Luma.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Package unsigned IPA
+        run: |
+          set -eo pipefail
+          APP_PATH="build/Luma.xcarchive/Products/Applications/Luma.app"
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/
+          cd build
+          zip -r -y Luma-unsigned.ipa Payload
+          cd ..
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Luma-unsigned-ipa
+          path: build/Luma-unsigned.ipa
+          retention-days: 90
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/Luma-unsigned.ipa
+          generate_release_notes: true
