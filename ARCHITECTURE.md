@@ -81,4 +81,5 @@ Xcode.
 `LumaTests` — XCTest, таргетируется на `Luma` через `@testable import Luma`.
 На Этапе 1 тесты проверяют только моковые данные и `AppState` (см.
 `LumaTests/LumaTests.swift`). Запускаются в CI (`tests.yml`, а также как шаг
-внутри `build.yml`) на симуляторе `iPhone 15`.
+внутри `build.yml`) на симуляторе `iPhone 17` (см. `KNOWN_ISSUES.md` про
+подверженность имени симулятора изменениям линейки).

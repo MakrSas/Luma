@@ -37,7 +37,7 @@ jobs:
           xcodebuild test \
             -project Luma.xcodeproj \
             -scheme Luma \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Upload test logs on failure
