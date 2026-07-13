@@ -101,6 +101,17 @@ Luma ([issue #94](https://github.com/tattn/LocalLLMClient/issues/94),
 вокруг стороннего submodule, работает нативно на Apple Silicon (все iPhone
 с поддержкой Metal, включая iPhone 15/A16).
 
+MLX-бэкенд тоже не собрался с первой попытки: транзитивная зависимость
+`swift-transformers` 1.3.3 (через `Tokenizers`) написана против API
+`swift-jinja` до его коммита от 2026-07-13 «Support integer keys in Jinja
+object literals» (введён тип `ObjectKey`), выпущенного как версия 2.4.0.
+`LocalLLMClient` требует `swift-jinja from: 2.3.5` — без дополнительных
+ограничений SPM резолвит его к последней версии (2.4.0), которая ломает
+компиляцию `swift-transformers`. Зафиксировано в `project.yml` явным,
+не подключённым ни к одному таргету пакетом `SwiftJinja` с диапазоном
+`2.3.5...2.3.6` — этого достаточно, чтобы унифицированный резолвер SPM не
+поднимался до 2.4.0 для всего графа.
+
 Из этого следует: модели теперь в формате MLX (папка с
 `model.safetensors` + `tokenizer.json` + конфиги), а не одиночный `.gguf`
 файл — см. `Luma/Models/LocalModel.swift`. Каталог моделей указывает на
