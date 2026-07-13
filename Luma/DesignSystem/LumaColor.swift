@@ -1,7 +1,12 @@
 import SwiftUI
 
-/// Luma's visual identity: warm "light" accent (the app's name means "light")
-/// on a neutral graphite canvas. Deliberately not the generic purple/blue AI palette.
+/// Luma's visual identity: strictly monochrome (black/white "ink" on a
+/// neutral canvas). No brand accent color — interactive/selected elements
+/// use the inverted label color instead. Semantic risk colors
+/// (success/warning/danger) are the one exception: they carry safety
+/// information in confirmations and stay legible functional colors, the
+/// same way the Siri reference screenshots keep a green battery ring in an
+/// otherwise monochrome UI.
 enum LumaColor {
     static func dynamic(light: UIColor, dark: UIColor) -> Color {
         Color(UIColor { trait in
@@ -9,16 +14,17 @@ enum LumaColor {
         })
     }
 
-    /// Primary accent — warm amber "glow".
+    /// Ink accent: black in light mode, white in dark mode. Used for
+    /// interactive foregrounds, selected states, and filled controls.
     static let accent = dynamic(
-        light: UIColor(red: 0.86, green: 0.53, blue: 0.13, alpha: 1),
-        dark: UIColor(red: 1.00, green: 0.72, blue: 0.31, alpha: 1)
+        light: UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 1),
+        dark: UIColor(red: 0.97, green: 0.97, blue: 0.97, alpha: 1)
     )
 
-    /// Secondary accent — cool ember used sparingly for contrast highlights.
-    static let accentSecondary = dynamic(
-        light: UIColor(red: 0.79, green: 0.31, blue: 0.24, alpha: 1),
-        dark: UIColor(red: 0.95, green: 0.46, blue: 0.38, alpha: 1)
+    /// Contrasting foreground for content drawn on top of an `accent` fill.
+    static let onAccent = dynamic(
+        light: UIColor.white,
+        dark: UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 1)
     )
 
     static let canvas = dynamic(

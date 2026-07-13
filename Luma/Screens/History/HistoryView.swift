@@ -1,45 +1,48 @@
 import SwiftUI
 
+/// Launch screen. Structure follows the reference screenshots exactly: a
+/// masonry grid of cards with a small date/pin meta line, no page title, a
+/// floating filter/options button top-trailing, and floating search +
+/// compose buttons bottom-leading/trailing. No standard navigation bar.
 struct HistoryView: View {
     @Environment(AppState.self) private var appState
     @Binding var path: NavigationPath
+
     @State private var query: String = ""
+    @State private var isSearching = false
+    @State private var sortNewestFirst = true
     @State private var renamingID: UUID?
     @State private var renameText: String = ""
+    @FocusState private var searchFocused: Bool
 
     private var filtered: [Conversation] {
-        let all = appState.conversations
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return all }
-        return all.filter {
-            $0.title.localizedCaseInsensitiveContains(query) || $0.summary.localizedCaseInsensitiveContains(query)
+        var all = appState.conversations
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty {
+            all = all.filter {
+                $0.title.localizedCaseInsensitiveContains(trimmed) || $0.summary.localizedCaseInsensitiveContains(trimmed)
+            }
         }
+        all.sort { a, b in
+            if a.isPinned != b.isPinned { return a.isPinned }
+            return sortNewestFirst ? a.updatedAt > b.updatedAt : a.updatedAt < b.updatedAt
+        }
+        return all
     }
 
-    private var pinned: [Conversation] { filtered.filter(\.isPinned) }
-    private var rest: [Conversation] { filtered.filter { !$0.isPinned } }
-
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: LumaSpacing.lg) {
-                header
+        ZStack(alignment: .bottom) {
+            LumaColor.canvas.ignoresSafeArea()
 
-                if !pinned.isEmpty {
-                    sectionLabel("Закреплённые")
-                    MasonryLayout(spacing: LumaSpacing.sm) {
-                        ForEach(pinned) { conversation in
-                            card(for: conversation)
-                        }
+            ScrollView {
+                MasonryLayout(spacing: LumaSpacing.sm) {
+                    ForEach(filtered) { conversation in
+                        card(for: conversation)
                     }
                 }
-
-                if !rest.isEmpty {
-                    sectionLabel("Все диалоги")
-                    MasonryLayout(spacing: LumaSpacing.sm) {
-                        ForEach(rest) { conversation in
-                            card(for: conversation)
-                        }
-                    }
-                }
+                .padding(.horizontal, LumaSpacing.md)
+                .padding(.top, LumaSpacing.xxl)
+                .padding(.bottom, LumaSpacing.xxl)
 
                 if filtered.isEmpty {
                     Text("Ничего не найдено")
@@ -49,13 +52,23 @@ struct HistoryView: View {
                         .padding(.top, LumaSpacing.xl)
                 }
             }
-            .padding(.horizontal, LumaSpacing.md)
-            .padding(.bottom, LumaSpacing.xl)
+
+            bottomControls
         }
-        .background(LumaColor.canvas.ignoresSafeArea())
-        .navigationTitle("История")
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Поиск диалогов")
+        .overlay(alignment: .topTrailing) {
+            optionsButton
+                .padding(.top, LumaSpacing.xs)
+                .padding(.trailing, LumaSpacing.md)
+        }
+        .overlay(alignment: .top) {
+            if isSearching {
+                searchBar
+                    .padding(.horizontal, LumaSpacing.md)
+                    .padding(.top, LumaSpacing.xs)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
         .alert("Переименовать диалог", isPresented: Binding(get: { renamingID != nil }, set: { if !$0 { renamingID = nil } })) {
             TextField("Название", text: $renameText)
             Button("Отмена", role: .cancel) { renamingID = nil }
@@ -68,18 +81,101 @@ struct HistoryView: View {
         }
     }
 
-    private var header: some View {
-        Text("История")
-            .font(LumaType.display())
-            .foregroundStyle(LumaColor.textPrimary)
-            .padding(.top, LumaSpacing.xs)
+    private var optionsButton: some View {
+        Menu {
+            Section("Сортировка") {
+                Button {
+                    sortNewestFirst = true
+                } label: {
+                    if sortNewestFirst {
+                        Label("Сначала новые", systemImage: "checkmark")
+                    } else {
+                        Text("Сначала новые")
+                    }
+                }
+                Button {
+                    sortNewestFirst = false
+                } label: {
+                    if !sortNewestFirst {
+                        Label("Сначала старые", systemImage: "checkmark")
+                    } else {
+                        Text("Сначала старые")
+                    }
+                }
+            }
+            Button {
+                path.append(Route.settingsHub)
+            } label: {
+                Label("Настройки", systemImage: "gearshape")
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(LumaColor.textPrimary)
+                .frame(width: 40, height: 40)
+                .glassSurface(cornerRadius: LumaRadius.pill)
+        }
     }
 
-    private func sectionLabel(_ text: String) -> some View {
-        Text(text)
-            .font(LumaType.caption.weight(.semibold))
-            .foregroundStyle(LumaColor.textTertiary)
-            .textCase(.uppercase)
+    private var searchBar: some View {
+        HStack(spacing: LumaSpacing.xs) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(LumaColor.textTertiary)
+            TextField("Поиск диалогов", text: $query)
+                .font(LumaType.body)
+                .focused($searchFocused)
+            Button {
+                isSearching = false
+                query = ""
+                searchFocused = false
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(LumaColor.textTertiary)
+            }
+        }
+        .padding(.horizontal, LumaSpacing.sm)
+        .frame(height: 40)
+        .glassSurface(cornerRadius: LumaRadius.pill)
+        .onAppear { searchFocused = true }
+    }
+
+    private var bottomControls: some View {
+        HStack {
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) { isSearching = true }
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(LumaColor.textPrimary)
+                    .frame(width: 44, height: 44)
+                    .glassSurface(cornerRadius: LumaRadius.pill)
+            }
+
+            Spacer()
+
+            Menu {
+                Button {
+                    let id = appState.startNewConversation(temporary: false)
+                    path.append(Route.conversation(id))
+                } label: {
+                    Label("Новый диалог", systemImage: "plus.bubble")
+                }
+                Button {
+                    let id = appState.startNewConversation(temporary: true)
+                    path.append(Route.conversation(id))
+                } label: {
+                    Label("Временный диалог", systemImage: "timer")
+                }
+            } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(LumaColor.onAccent)
+                    .frame(width: 44, height: 44)
+                    .background(LumaColor.accent, in: Circle())
+            }
+        }
+        .padding(.horizontal, LumaSpacing.md)
+        .padding(.bottom, LumaSpacing.xs)
     }
 
     private func card(for conversation: Conversation) -> some View {
@@ -120,57 +216,34 @@ struct HistoryView: View {
     .environment(AppState())
 }
 
+/// Formats a card's meta line the way the reference does: clock time for
+/// today, "Вчера" for yesterday, weekday name within the last week,
+/// otherwise a short date.
+private func metaLabel(for date: Date) -> String {
+    let calendar = Calendar.current
+    if calendar.isDateInToday(date) {
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+    if calendar.isDateInYesterday(date) {
+        return "Вчера"
+    }
+    if let days = calendar.dateComponents([.day], from: date, to: .now).day, days < 7 {
+        return date.formatted(.dateTime.weekday(.wide))
+    }
+    return date.formatted(date: .numeric, time: .omitted)
+}
+
 private struct HistoryCard: View {
     var conversation: Conversation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: LumaSpacing.xs) {
+        Group {
             if let icon = conversation.heroImageName {
-                ZStack(alignment: .topTrailing) {
-                    RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous)
-                        .fill(LumaColor.accent.opacity(0.16))
-                        .frame(height: heroHeight)
-                        .overlay(
-                            Image(systemName: icon)
-                                .font(.system(size: 30))
-                                .foregroundStyle(LumaColor.accent)
-                        )
-                    if conversation.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.caption)
-                            .foregroundStyle(.white)
-                            .padding(6)
-                            .background(.black.opacity(0.35), in: Circle())
-                            .padding(6)
-                    }
-                }
+                imageCard(icon: icon)
+            } else {
+                textCard
             }
-
-            if let tag = conversation.accentTag {
-                Text(tag.uppercased())
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(LumaColor.accent)
-                    .padding(.top, conversation.heroImageName == nil ? LumaSpacing.xs : 0)
-            }
-
-            Text(conversation.title)
-                .font(LumaType.headline)
-                .foregroundStyle(LumaColor.textPrimary)
-                .lineLimit(2)
-
-            if !conversation.summary.isEmpty {
-                Text(conversation.summary)
-                    .font(LumaType.footnote)
-                    .foregroundStyle(LumaColor.textSecondary)
-                    .lineLimit(3)
-            }
-
-            Text(conversation.updatedAt, format: .relative(presentation: .named))
-                .font(LumaType.caption)
-                .foregroundStyle(LumaColor.textTertiary)
         }
-        .padding(LumaSpacing.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(LumaColor.canvasElevated, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous)
@@ -178,7 +251,76 @@ private struct HistoryCard: View {
         )
     }
 
-    private var heroHeight: CGFloat {
-        conversation.isPinned ? 96 : 72
+    private var metaRow: some View {
+        HStack(spacing: LumaSpacing.xxs) {
+            if conversation.isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 9))
+            }
+            Text(metaLabel(for: conversation.updatedAt))
+        }
+        .font(.system(size: 11, weight: .medium))
+    }
+
+    private var textCard: some View {
+        VStack(alignment: .leading, spacing: LumaSpacing.xxs) {
+            metaRow
+                .foregroundStyle(LumaColor.textTertiary)
+
+            Text(conversation.title)
+                .font(LumaType.headline)
+                .foregroundStyle(LumaColor.textPrimary)
+                .lineLimit(2)
+                .padding(.top, 2)
+
+            if !conversation.summary.isEmpty {
+                Text(conversation.summary)
+                    .font(LumaType.footnote)
+                    .foregroundStyle(LumaColor.textSecondary)
+                    .lineLimit(4)
+            }
+        }
+        .padding(LumaSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func imageCard(icon: String) -> some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(
+                colors: [LumaColor.textPrimary.opacity(0.35), LumaColor.textPrimary.opacity(0.55)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .overlay(
+                Image(systemName: icon)
+                    .font(.system(size: 34))
+                    .foregroundStyle(.white.opacity(0.85))
+            )
+
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.75)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+
+            VStack {
+                HStack {
+                    metaRow
+                        .foregroundStyle(.white.opacity(0.9))
+                    Spacer()
+                }
+                Spacer()
+                HStack {
+                    Text(conversation.title)
+                        .font(LumaType.headline)
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                    Spacer()
+                }
+            }
+            .padding(LumaSpacing.sm)
+        }
+        .frame(height: conversation.isPinned ? 220 : 170)
+        .clipShape(RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
     }
 }

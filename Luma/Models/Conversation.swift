@@ -33,6 +33,7 @@ struct ChatMessage: Identifiable, Hashable {
         case user
         case assistant
         case toolAction
+        case richCard
     }
 
     let id: UUID
@@ -41,6 +42,7 @@ struct ChatMessage: Identifiable, Hashable {
     var createdAt: Date
     var isStreaming: Bool = false
     var toolAction: ToolActionCard?
+    var richCard: RichAnswerCard?
 }
 
 struct ToolActionCard: Identifiable, Hashable {
@@ -130,6 +132,19 @@ extension ChatMessage {
     static let mockThreadTravel: [ChatMessage] = [
         ChatMessage(id: UUID(), role: .user, text: "Что посмотреть в парке Чапультепек?", createdAt: .now.addingTimeInterval(-4000)),
         ChatMessage(id: UUID(), role: .assistant, text: "Парк разделён на четыре зоны и считается одним из крупнейших городских парков мира. Стоит посмотреть замок Чапультепек, Национальный музей антропологии и зоопарк.", createdAt: .now.addingTimeInterval(-3900)),
+        ChatMessage(
+            id: UUID(),
+            role: .richCard,
+            text: "",
+            createdAt: .now.addingTimeInterval(-3850),
+            richCard: RichAnswerCard(
+                id: UUID(),
+                symbolName: "building.columns.fill",
+                title: "Национальный музей антропологии",
+                subtitle: "Крупнейший музей Мексики, посвящённый доколумбовым культурам. Открыт ежедневно, кроме понедельника.",
+                sourceLabel: "wikipedia.org"
+            )
+        ),
         ChatMessage(id: UUID(), role: .user, text: "Добавь напоминание сходить в музей антропологии в субботу в 11:00", createdAt: .now.addingTimeInterval(-3800)),
         ChatMessage(
             id: UUID(),

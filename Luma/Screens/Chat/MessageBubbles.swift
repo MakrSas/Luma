@@ -8,7 +8,7 @@ struct UserBubble: View {
             Spacer(minLength: 40)
             Text(text)
                 .font(LumaType.body)
-                .foregroundStyle(.white)
+                .foregroundStyle(LumaColor.onAccent)
                 .padding(.horizontal, LumaSpacing.sm)
                 .padding(.vertical, LumaSpacing.xs)
                 .background(LumaColor.accent, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))

@@ -6,6 +6,7 @@ import Observation
 final class AppState {
     var conversations: [Conversation] = Conversation.mockList
     var activeConversationID: Conversation.ID?
+    var temporaryConversation: Conversation?
 
     var availableModels: [LocalModel] = LocalModel.mockCatalog
     var selectedModelID: LocalModel.ID = LocalModel.mockCatalog.first(where: { $0.isRecommended })?.id ?? LocalModel.mockCatalog[0].id
@@ -17,19 +18,20 @@ final class AppState {
     var actionLog: [ActionLogEntry] = ActionLogEntry.mockList
     var performanceProfile: PerformanceProfile = .balanced
 
-    var isTemporaryChatActive: Bool = false
-
-    var activeConversation: Conversation? {
-        get { conversations.first(where: { $0.id == activeConversationID }) }
+    func conversation(id: UUID) -> Conversation? {
+        conversations.first(where: { $0.id == id }) ?? (temporaryConversation?.id == id ? temporaryConversation : nil)
     }
 
-    func startNewConversation(temporary: Bool = false) {
+    @discardableResult
+    func startNewConversation(temporary: Bool = false) -> UUID {
         let conversation = Conversation.newEmpty(temporary: temporary)
-        if !temporary {
+        if temporary {
+            temporaryConversation = conversation
+        } else {
             conversations.insert(conversation, at: 0)
         }
         activeConversationID = conversation.id
-        isTemporaryChatActive = temporary
+        return conversation.id
     }
 
     func selectedModel() -> LocalModel {

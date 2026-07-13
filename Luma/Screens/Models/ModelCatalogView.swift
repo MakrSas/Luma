@@ -47,7 +47,7 @@ struct ModelCatalogRow: View {
                                 .font(.system(size: 10, weight: .bold))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(LumaColor.onAccent)
                                 .background(LumaColor.accent, in: Capsule())
                         }
                     }

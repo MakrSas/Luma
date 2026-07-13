@@ -21,7 +21,7 @@ enum AgentStatus: Equatable {
 struct ChatView: View {
     @Environment(AppState.self) private var appState
     @Binding var path: NavigationPath
-    var conversationID: UUID?
+    var conversationID: UUID
 
     @State private var draft: String = ""
     @State private var messages: [ChatMessage] = []
@@ -31,45 +31,39 @@ struct ChatView: View {
     @State private var showIntelligencePicker = false
     @FocusState private var inputFocused: Bool
 
-    private var resolvedConversation: Conversation? {
-        let id = conversationID ?? appState.activeConversationID
-        return appState.conversations.first(where: { $0.id == id })
+    private var conversation: Conversation? {
+        appState.conversation(id: conversationID)
     }
 
     private var navTitle: String {
-        if appState.isTemporaryChatActive && conversationID == nil {
-            return "Временный диалог"
-        }
-        return resolvedConversation?.title ?? "Luma"
+        if conversation?.isTemporary == true { return "Временный диалог" }
+        return conversation?.title ?? "Luma"
+    }
+
+    private var canSend: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
         VStack(spacing: 0) {
             messageScroll
-            inputArea
+            inputBar
         }
         .background(LumaColor.canvas.ignoresSafeArea())
         .navigationTitle(navTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    path.append(Route.history)
-                } label: {
-                    Image(systemName: "square.grid.2x2")
-                }
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
-                        appState.startNewConversation(temporary: false)
-                        messages = []
+                        let id = appState.startNewConversation(temporary: false)
+                        path.append(Route.conversation(id))
                     } label: {
                         Label("Новый диалог", systemImage: "plus.bubble")
                     }
                     Button {
-                        appState.startNewConversation(temporary: true)
-                        messages = []
+                        let id = appState.startNewConversation(temporary: true)
+                        path.append(Route.conversation(id))
                     } label: {
                         Label("Временный диалог", systemImage: "timer")
                     }
@@ -85,6 +79,12 @@ struct ChatView: View {
         }
         .onAppear(perform: loadMessages)
         .onChange(of: conversationID) { _, _ in loadMessages() }
+        .sheet(isPresented: $showModelPicker) {
+            ModelPickerSheet()
+        }
+        .sheet(isPresented: $showIntelligencePicker) {
+            IntelligencePickerSheet()
+        }
     }
 
     private var messageScroll: some View {
@@ -139,85 +139,71 @@ struct ChatView: View {
             if let action = message.toolAction {
                 ToolActionCardView(action: action)
             }
+        case .richCard:
+            if let card = message.richCard {
+                RichAnswerCardView(card: card)
+            }
         }
     }
 
-    private var inputArea: some View {
-        VStack(spacing: LumaSpacing.xs) {
-            HStack(spacing: LumaSpacing.xs) {
+    /// Siri-style input bar: a leading "+" opens model/intelligence controls
+    /// (per DESIGN.md there is no microphone — everything that used to sit in
+    /// a chip row above the field now lives behind "+"), a pill text field,
+    /// and a compact round send/stop button.
+    private var inputBar: some View {
+        HStack(alignment: .center, spacing: LumaSpacing.xs) {
+            Menu {
                 Button {
                     showModelPicker = true
                 } label: {
-                    HStack(spacing: LumaSpacing.xxs) {
-                        Image(systemName: "cube.fill")
-                        Text(appState.selectedModel().name)
-                            .lineLimit(1)
-                    }
-                    .font(LumaType.caption)
+                    Label(appState.selectedModel().name, systemImage: "cube.fill")
                 }
-                .lumaGlassButtonStyle()
-
                 Button {
                     showIntelligencePicker = true
                 } label: {
-                    HStack(spacing: LumaSpacing.xxs) {
-                        Image(systemName: appState.intelligenceMode.systemImage)
-                        Text(appState.intelligenceMode.title)
-                    }
-                    .font(LumaType.caption)
+                    Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
                 }
-                .lumaGlassButtonStyle()
-
-                Spacer()
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(LumaColor.textPrimary)
+                    .frame(width: 30, height: 30)
             }
-            .padding(.horizontal, LumaSpacing.md)
 
-            LumaGlass.container {
-                HStack(alignment: .bottom, spacing: LumaSpacing.xs) {
-                    TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
-                        .font(LumaType.body)
-                        .lineLimit(1...5)
-                        .focused($inputFocused)
-                        .padding(.vertical, LumaSpacing.xs)
-                        .padding(.leading, LumaSpacing.sm)
+            TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
+                .font(LumaType.body)
+                .lineLimit(1...5)
+                .focused($inputFocused)
 
-                    sendButton
-                        .padding(.trailing, LumaSpacing.xxs)
-                        .padding(.bottom, 4)
+            Button {
+                if isGenerating {
+                    stopGeneration()
+                } else {
+                    sendMessage()
                 }
-                .padding(.vertical, LumaSpacing.xxs)
-                .glassSurface(cornerRadius: LumaRadius.large)
+            } label: {
+                Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(LumaColor.onAccent)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3),
+                        in: Circle()
+                    )
             }
-            .padding(.horizontal, LumaSpacing.md)
-            .padding(.bottom, LumaSpacing.xs)
+            .disabled(!isGenerating && !canSend)
         }
+        .padding(.leading, LumaSpacing.sm)
+        .padding(.trailing, LumaSpacing.xxs)
+        .padding(.vertical, LumaSpacing.xxs)
+        .glassSurface(cornerRadius: LumaRadius.pill)
+        .padding(.horizontal, LumaSpacing.md)
         .padding(.top, LumaSpacing.xs)
-        .sheet(isPresented: $showModelPicker) {
-            ModelPickerSheet()
-        }
-        .sheet(isPresented: $showIntelligencePicker) {
-            IntelligencePickerSheet()
-        }
-    }
-
-    private var sendButton: some View {
-        Button {
-            if isGenerating {
-                stopGeneration()
-            } else {
-                sendMessage()
-            }
-        } label: {
-            Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
-                .font(.system(size: 15, weight: .bold))
-                .frame(width: 32, height: 32)
-        }
-        .lumaGlassProminentButtonStyle()
-        .disabled(!isGenerating && draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        .padding(.bottom, LumaSpacing.xs)
     }
 
     private func loadMessages() {
-        messages = resolvedConversation?.messages ?? []
+        messages = conversation?.messages ?? []
     }
 
     private func sendMessage() {
@@ -282,7 +268,7 @@ private enum MockReplyGenerator {
 
 #Preview {
     NavigationStack {
-        ChatView(path: .constant(NavigationPath()))
+        ChatView(path: .constant(NavigationPath()), conversationID: Conversation.mockList[0].id)
     }
     .environment(AppState())
 }

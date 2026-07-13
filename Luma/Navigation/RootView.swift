@@ -6,17 +6,12 @@ struct RootView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            ChatView(path: $path)
+            HistoryView(path: $path)
                 .navigationDestination(for: Route.self) { route in
                     destination(for: route)
                 }
         }
         .tint(LumaColor.accent)
-        .onAppear {
-            if appState.activeConversationID == nil {
-                appState.activeConversationID = appState.conversations.first?.id
-            }
-        }
     }
 
     @ViewBuilder
@@ -24,8 +19,6 @@ struct RootView: View {
         switch route {
         case .conversation(let id):
             ChatView(path: $path, conversationID: id)
-        case .history:
-            HistoryView(path: $path)
         case .settingsHub:
             SettingsHubView(path: $path)
         case .modelCatalog:

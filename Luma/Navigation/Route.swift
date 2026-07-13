@@ -2,7 +2,6 @@ import Foundation
 
 enum Route: Hashable {
     case conversation(UUID)
-    case history
     case settingsHub
     case modelCatalog
     case modelDetail(String)

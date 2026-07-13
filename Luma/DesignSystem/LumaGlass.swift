@@ -77,9 +77,9 @@ extension View {
     @ViewBuilder
     func lumaGlassProminentButtonStyle() -> some View {
         if #available(iOS 26.0, *) {
-            self.buttonStyle(.glassProminent)
+            self.buttonStyle(.glassProminent).tint(LumaColor.accent)
         } else {
-            self.buttonStyle(.borderedProminent)
+            self.buttonStyle(.borderedProminent).tint(LumaColor.accent)
         }
     }
 }

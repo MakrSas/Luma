@@ -76,7 +76,7 @@ struct MemoryView: View {
         } label: {
             Text(label)
                 .font(LumaType.caption.weight(.medium))
-                .foregroundStyle(isSelected ? .white : LumaColor.textPrimary)
+                .foregroundStyle(isSelected ? LumaColor.onAccent : LumaColor.textPrimary)
                 .padding(.horizontal, LumaSpacing.sm)
                 .padding(.vertical, LumaSpacing.xxs)
                 .background(isSelected ? LumaColor.accent : LumaColor.canvasElevated, in: Capsule())
