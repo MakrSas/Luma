@@ -6,8 +6,11 @@ import SwiftUI
 /// prose — mirroring system widgets like Settings' Battery tile or a
 /// connected-app status row, per DESIGN.md.
 enum AnswerWidgetKind: String, Hashable, CaseIterable {
-    /// Square tile: ring gauge + icon, big value, caption below. Matches the
-    /// system Battery widget. Composable — one or several lay out as a grid.
+    /// One value on its own: ring gauge + icon beside a big value, inline.
+    /// Used when the agent's whole answer is a single metric.
+    case compactMetric
+    /// Square tile: ring gauge + icon, big value below. Matches the system
+    /// Battery widget. Composable — several lay out together as a grid.
     case squareTile
     /// Single full-width row: small ring + icon, caption, value line.
     /// Matches a connected-app status row (e.g. a car's battery/range).

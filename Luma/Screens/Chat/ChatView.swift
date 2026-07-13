@@ -182,7 +182,7 @@ struct ChatView: View {
                     .lineLimit(1...5)
                     .focused($inputFocused)
                     .padding(.horizontal, LumaSpacing.md)
-                    .frame(minHeight: 44)
+                    .padding(.vertical, LumaSpacing.sm)
                     .glassSurface(cornerRadius: LumaRadius.pill)
 
                 Button {
@@ -296,24 +296,27 @@ private enum MockReplyGenerator {
         let asksStorage = lower.contains("память") || lower.contains("хранилищ") || lower.contains("места") || lower.contains("диск")
 
         if asksBattery && asksStorage {
-            return .widgets(intro: "Вот текущий статус устройства:", widgets: [batteryWidget(), storageWidget()])
+            return .widgets(intro: "Вот текущий статус устройства:", widgets: [batteryWidget(kind: .squareTile), storageWidget(kind: .squareTile)])
         }
         if asksBattery {
-            return .widgets(intro: "Сейчас на iPhone:", widgets: [batteryWidget()])
+            return .widgets(intro: "Сейчас на iPhone:", widgets: [batteryWidget(kind: .compactMetric)])
         }
         if asksStorage {
-            return .widgets(intro: "Свободное место на устройстве:", widgets: [storageWidget()])
+            return .widgets(intro: "Свободное место на устройстве:", widgets: [storageWidget(kind: .compactMetric)])
         }
         return .text("Это демонстрационный ответ на моковых данных. На Этапе 1 модель ещё не подключена — здесь показывается потоковая генерация текста и общий вид интерфейса.")
     }
 
-    private static func batteryWidget() -> AnswerWidget {
+    /// Matches the real Battery widget's color rule: white/monochrome by
+    /// default, green only while charging, red only when critically low —
+    /// never a green ring just because the level happens to be high.
+    private static func batteryWidget(kind: AnswerWidgetKind) -> AnswerWidget {
         let snapshot = DiagnosticsSnapshot()
         let fraction = Double(snapshot.batteryPercent) / 100.0
-        let tint: AnswerWidgetTint = snapshot.batteryPercent > 50 ? .success : (snapshot.batteryPercent > 20 ? .warning : .danger)
+        let tint: AnswerWidgetTint = snapshot.isCharging ? .success : (snapshot.batteryPercent <= 20 ? .danger : .neutral)
         return AnswerWidget(
             id: UUID(),
-            kind: .squareTile,
+            kind: kind,
             symbolName: "iphone",
             badgeSymbolName: snapshot.isCharging ? "bolt.fill" : nil,
             progress: fraction,
@@ -324,12 +327,12 @@ private enum MockReplyGenerator {
         )
     }
 
-    private static func storageWidget() -> AnswerWidget {
+    private static func storageWidget(kind: AnswerWidgetKind) -> AnswerWidget {
         let snapshot = DiagnosticsSnapshot()
         let fraction = snapshot.storageAvailableGB / snapshot.storageTotalGB
         return AnswerWidget(
             id: UUID(),
-            kind: .squareTile,
+            kind: kind,
             symbolName: "internaldrive.fill",
             badgeSymbolName: nil,
             progress: fraction,
