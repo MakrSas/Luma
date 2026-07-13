@@ -58,8 +58,10 @@ Xcode.
 
 - **Этап 2 (данные)**: SwiftData-модели взамен моковых структур, миграция
   `AppState` на репозитории поверх `ModelContext`.
-- **Этап 3 (агент и инструменты)**: `LocalInferenceEngine` (протокол) +
-  `MockInferenceEngine` / `LlamaInferenceEngine`; `AgentRunCoordinator`,
+- **Этап 3 (агент и инструменты)**: `LocalInferenceEngine` (протокол,
+  `Luma/Inference/LocalInferenceEngine.swift`) реализован раньше графика —
+  см. раздел «Реальный локальный инференс» ниже. `MockInferenceEngine` /
+  `MLXInferenceEngine`; `AgentRunCoordinator`,
   `AgentStateMachine`, `ComplexityRouter`, `Planner`, `ToolRegistry`,
   `ToolExecutor`, `ToolCallParser`, `PermissionPolicy`,
   `ConfirmationCoordinator`, `ModelContextBuilder`, `AgentRunStore`,
@@ -73,9 +75,48 @@ Xcode.
   `MemoryRanker`, `MemoryDeduplicator`, `MemoryPolicy`,
   `MemoryContextBuilder`, `MemoryEncryption` (Keychain-backed), `MemoryImportExport`,
   `EmbeddingProvider`.
-- **Этап 5 (локальная модель)**: `LlamaInferenceEngine` через llama.cpp/Metal,
-  реальный каталог с манифестом (встроенный + удалённый JSON), проверка
-  SHA-256, возобновляемая загрузка.
+- **Этап 5 (локальная модель)**: базовый реальный инференс уже есть (см.
+  ниже) — остаётся полноценный манифест каталога (встроенный + удалённый
+  JSON) и возобновляемая многофайловая загрузка со сверкой прогресса по
+  каждому файлу.
+
+## Реальный локальный инференс (внедрён раньше графика)
+
+По прямому запросу пользователя проверить виджеты «в реальности», а не на
+моках, часть Этапа 5 сделана сразу после Этапа 1, не дожидаясь Этапов 2–4.
+Это осознанное отступление от «не пытайся сделать все этапы сразу» —
+масштаб сознательно ограничен только инференсом и загрузкой одной модели,
+без полного `AgentRunCoordinator`/`Planner`/`ToolRegistry` из Этапа 3.
+
+**Рантайм — MLX, не llama.cpp.** Исходный план называл
+`LlamaInferenceEngine` через llama.cpp/GGUF. При подключении
+[`LocalLLMClient`](https://github.com/tattn/LocalLLMClient) (SPM,
+MIT) обнаружился **подтверждённый открытый баг апстрима** в его
+llama.cpp-бэкенде: `LocalLLMClientLlamaC` содержит symlink'и на
+git submodule `exclude/llama.cpp`, а SPM никогда не подтягивает submodules
+у зависимостей — сборка падает у любого потребителя пакета, не только у
+Luma ([issue #94](https://github.com/tattn/LocalLLMClient/issues/94),
+подтверждено контрибьютором пакета, решения нет). Переключились на MLX-бэкенд
+того же пакета (`LocalLLMClientMLX`) — чистый Swift/Metal, без C++-обёрток
+вокруг стороннего submodule, работает нативно на Apple Silicon (все iPhone
+с поддержкой Metal, включая iPhone 15/A16).
+
+Из этого следует: модели теперь в формате MLX (папка с
+`model.safetensors` + `tokenizer.json` + конфиги), а не одиночный `.gguf`
+файл — см. `Luma/Models/LocalModel.swift`. Каталог моделей указывает на
+репозитории `mlx-community` на HuggingFace, не на GGUF-файлы.
+
+- `Luma/Inference/LocalInferenceEngine.swift` — протокол
+  (`load`/`unload`/`generate`/`cancelGeneration`), `InferenceRequest`,
+  `InferenceError`.
+- `Luma/Inference/MockInferenceEngine.swift` — для Preview/тестов и как
+  явное состояние «модель не скачана» (не смешивается с реальным ответом).
+- `Luma/Inference/MLXInferenceEngine.swift` — обёртка над
+  `LocalLLMClientMLX.MLXClient`, потоковая генерация.
+
+Если апстрим когда-нибудь починит `LocalLLMClientLlamaC` (issue #94), можно
+будет добавить `LlamaInferenceEngine` как альтернативный бэкенд для
+GGUF-моделей, не трогая протокол `LocalInferenceEngine`.
 - **Этап 6 (Dynamic Island и фон)**: реальные `Activity<LumaAgentActivityAttributes>`
   из приложения, `BackgroundTasks` для возобновления приостановленных
   `AgentRun`.

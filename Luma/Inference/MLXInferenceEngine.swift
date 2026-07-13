@@ -1,19 +1,33 @@
 import Foundation
 import LocalLLMClient
-import LocalLLMClientLlama
+import LocalLLMClientMLX
 
-/// Real local inference over a downloaded GGUF model, via llama.cpp through
-/// the LocalLLMClient package. Only ever holds one loaded model at a time —
-/// `load(modelFileURL:)` unloads whatever was previously resident first,
-/// per the "don't keep several large models in memory" constraint from
-/// ARCHITECTURE.md.
-final class LlamaInferenceEngine: LocalInferenceEngine {
-    private var client: LlamaClient?
+/// Real local inference over a downloaded MLX model directory, via Apple's
+/// MLX framework (through the LocalLLMClient package's MLX backend).
+///
+/// This is MLX, not llama.cpp/GGUF as ARCHITECTURE.md originally sketched:
+/// LocalLLMClient's llama.cpp backend (`LocalLLMClientLlama`) has a
+/// confirmed, still-open upstream packaging bug (dangling symlinks into a
+/// git submodule that Swift Package Manager never fetches — see
+/// github.com/tattn/LocalLLMClient/issues/94), so any SPM consumer's build
+/// fails, not just Luma's. MLX is pure Swift/Metal with no such issue and
+/// runs natively on iPhone's Apple Silicon, so it's the real, working path
+/// for Stage 5 rather than a placeholder. `LocalModel` catalog entries now
+/// point at `mlx-community` model directories instead of single GGUF files.
+///
+/// Only ever holds one loaded model at a time — `load(modelFileURL:)`
+/// unloads whatever was previously resident first, per the "don't keep
+/// several large models in memory" constraint from ARCHITECTURE.md.
+final class MLXInferenceEngine: LocalInferenceEngine {
+    private var client: MLXClient?
     private var loadedURL: URL?
     private var generationTask: Task<Void, Never>?
 
     var isReady: Bool { client != nil }
 
+    /// `modelFileURL` here is a *directory* (MLX models ship as a folder of
+    /// weights + tokenizer files, not one file) containing a downloaded
+    /// `mlx-community` model snapshot.
     func load(modelFileURL: URL) async throws {
         if loadedURL == modelFileURL, client != nil { return }
         unload()
@@ -21,9 +35,9 @@ final class LlamaInferenceEngine: LocalInferenceEngine {
             throw InferenceError.modelFileMissing
         }
         do {
-            client = try await LocalLLMClient.llama(
+            client = try await MLXClient(
                 url: modelFileURL,
-                parameter: .init(temperature: 0.7, topP: 0.9)
+                parameter: .init(maxTokens: 512, temperature: 0.6, topP: 0.9)
             )
             loadedURL = modelFileURL
         } catch {
@@ -55,7 +69,8 @@ final class LlamaInferenceEngine: LocalInferenceEngine {
 
             generationTask = Task {
                 do {
-                    for try await text in try await client.textStream(from: input) {
+                    let stream = try await client.textStream(from: input)
+                    for await text in stream {
                         if Task.isCancelled {
                             continuation.finish(throwing: InferenceError.cancelled)
                             return

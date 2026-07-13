@@ -65,7 +65,7 @@ targets:
       - package: LocalLLMClient
         product: LocalLLMClient
       - package: LocalLLMClient
-        product: LocalLLMClientLlama
+        product: LocalLLMClientMLX
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.makrsas.luma
