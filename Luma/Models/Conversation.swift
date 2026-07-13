@@ -61,18 +61,6 @@ struct ToolActionCard: Identifiable, Hashable {
     }
 }
 
-enum RiskLevel: String, Hashable, CaseIterable {
-    case low, medium, high
-
-    var label: String {
-        switch self {
-        case .low: return "Низкий риск"
-        case .medium: return "Средний риск"
-        case .high: return "Высокий риск"
-        }
-    }
-}
-
 extension Conversation {
     static let mockList: [Conversation] = [
         Conversation(

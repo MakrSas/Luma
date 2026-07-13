@@ -69,7 +69,7 @@ targets:
     platform: iOS
     sources:
       - path: LumaWidgets
-      - path: Luma/Shared/LumaActivityAttributes.swift
+      - path: Luma/Shared
         group: Shared
       - path: Luma/DesignSystem
         group: Shared
