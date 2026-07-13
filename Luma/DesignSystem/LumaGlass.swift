@@ -32,8 +32,7 @@ struct GlassSurface: ViewModifier {
             let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             content.glassEffect(
                 tint == nil ? .regular : .regular.tint(tint),
-                in: shape,
-                isEnabled: true
+                in: shape
             )
         } else {
             content
