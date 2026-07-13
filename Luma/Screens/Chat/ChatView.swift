@@ -143,6 +143,10 @@ struct ChatView: View {
             if let card = message.richCard {
                 RichAnswerCardView(card: card)
             }
+        case .widgets:
+            if let widgets = message.widgets, !widgets.isEmpty {
+                AnswerWidgetGridView(widgets: widgets)
+            }
         }
     }
 
@@ -230,7 +234,17 @@ struct ChatView: View {
         isGenerating = true
         status = .thinking
         let replyID = UUID()
-        let fullReply = MockReplyGenerator.reply(for: messages.last?.text ?? "")
+        let reply = MockReplyGenerator.reply(for: messages.last?.text ?? "")
+        let introText: String
+        let trailingWidgets: [AnswerWidget]?
+        switch reply {
+        case .text(let text):
+            introText = text
+            trailingWidgets = nil
+        case .widgets(let intro, let widgets):
+            introText = intro
+            trailingWidgets = widgets
+        }
 
         Task {
             try? await Task.sleep(nanoseconds: 500_000_000)
@@ -241,7 +255,7 @@ struct ChatView: View {
             }
 
             var shown = ""
-            for character in fullReply {
+            for character in introText {
                 try? await Task.sleep(nanoseconds: 18_000_000)
                 guard isGenerating else { return }
                 shown.append(character)
@@ -256,6 +270,9 @@ struct ChatView: View {
                 if let idx = messages.firstIndex(where: { $0.id == replyID }) {
                     messages[idx].isStreaming = false
                 }
+                if let trailingWidgets {
+                    messages.append(ChatMessage(id: UUID(), role: .widgets, text: "", createdAt: .now, widgets: trailingWidgets))
+                }
                 isGenerating = false
                 status = .idle
             }
@@ -263,9 +280,64 @@ struct ChatView: View {
     }
 }
 
+/// Stage 1 has no real agent yet, but this stands in for the moment a real
+/// run would call `get_device_status` and decide the result reads better as
+/// a native widget than as prose — the same `AnswerWidget` catalog a real
+/// agent will compose from later (see ARCHITECTURE.md).
+private enum MockReply {
+    case text(String)
+    case widgets(intro: String, widgets: [AnswerWidget])
+}
+
 private enum MockReplyGenerator {
-    static func reply(for prompt: String) -> String {
-        "Это демонстрационный ответ на моковых данных. На Этапе 1 модель ещё не подключена — здесь показывается потоковая генерация текста и общий вид интерфейса."
+    static func reply(for prompt: String) -> MockReply {
+        let lower = prompt.lowercased()
+        let asksBattery = lower.contains("процент") || lower.contains("батаре") || lower.contains("заряд")
+        let asksStorage = lower.contains("память") || lower.contains("хранилищ") || lower.contains("места") || lower.contains("диск")
+
+        if asksBattery && asksStorage {
+            return .widgets(intro: "Вот текущий статус устройства:", widgets: [batteryWidget(), storageWidget()])
+        }
+        if asksBattery {
+            return .widgets(intro: "Сейчас на iPhone:", widgets: [batteryWidget()])
+        }
+        if asksStorage {
+            return .widgets(intro: "Свободное место на устройстве:", widgets: [storageWidget()])
+        }
+        return .text("Это демонстрационный ответ на моковых данных. На Этапе 1 модель ещё не подключена — здесь показывается потоковая генерация текста и общий вид интерфейса.")
+    }
+
+    private static func batteryWidget() -> AnswerWidget {
+        let snapshot = DiagnosticsSnapshot()
+        let fraction = Double(snapshot.batteryPercent) / 100.0
+        let tint: AnswerWidgetTint = snapshot.batteryPercent > 50 ? .success : (snapshot.batteryPercent > 20 ? .warning : .danger)
+        return AnswerWidget(
+            id: UUID(),
+            kind: .squareTile,
+            symbolName: "iphone",
+            badgeSymbolName: snapshot.isCharging ? "bolt.fill" : nil,
+            progress: fraction,
+            tint: tint,
+            valueText: "\(snapshot.batteryPercent) %",
+            detailText: nil,
+            caption: "Аккумулятор"
+        )
+    }
+
+    private static func storageWidget() -> AnswerWidget {
+        let snapshot = DiagnosticsSnapshot()
+        let fraction = snapshot.storageAvailableGB / snapshot.storageTotalGB
+        return AnswerWidget(
+            id: UUID(),
+            kind: .squareTile,
+            symbolName: "internaldrive.fill",
+            badgeSymbolName: nil,
+            progress: fraction,
+            tint: .neutral,
+            valueText: "\(Int(snapshot.storageAvailableGB)) ГБ",
+            detailText: nil,
+            caption: "Свободно"
+        )
     }
 }
 

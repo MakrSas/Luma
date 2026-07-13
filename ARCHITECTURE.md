@@ -63,7 +63,12 @@ Xcode.
   `AgentStateMachine`, `ComplexityRouter`, `Planner`, `ToolRegistry`,
   `ToolExecutor`, `ToolCallParser`, `PermissionPolicy`,
   `ConfirmationCoordinator`, `ModelContextBuilder`, `AgentRunStore`,
-  `RetryPolicy`, `LoopProtection`.
+  `RetryPolicy`, `LoopProtection`. Сюда же относится реальный выбор
+  представления ответа (обычный текст / `RichAnswerCard` / один или
+  несколько `AnswerWidget`) на основе структуры результата инструмента —
+  на Этапе 1 это делает ключевыми словами `MockReplyGenerator` в
+  `ChatView.swift`, но сам каталог виджетов (`Luma/Models/AnswerWidget.swift`,
+  `Luma/Screens/Chat/AnswerWidgetView.swift`) уже настоящий, не мок.
 - **Этап 4 (память)**: `MemoryStore`, `MemoryExtractor`, `MemoryRetriever`,
   `MemoryRanker`, `MemoryDeduplicator`, `MemoryPolicy`,
   `MemoryContextBuilder`, `MemoryEncryption` (Keychain-backed), `MemoryImportExport`,

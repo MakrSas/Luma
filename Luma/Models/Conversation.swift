@@ -34,6 +34,7 @@ struct ChatMessage: Identifiable, Hashable {
         case assistant
         case toolAction
         case richCard
+        case widgets
     }
 
     let id: UUID
@@ -43,6 +44,7 @@ struct ChatMessage: Identifiable, Hashable {
     var isStreaming: Bool = false
     var toolAction: ToolActionCard?
     var richCard: RichAnswerCard?
+    var widgets: [AnswerWidget]?
 }
 
 struct ToolActionCard: Identifiable, Hashable {

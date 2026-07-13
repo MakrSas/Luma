@@ -36,4 +36,7 @@ struct DiagnosticsSnapshot {
     var lastTimeToFirstTokenMs: Int = 410
     var thermalState: String = "Норма"
     var storageAvailableGB: Double = 34.2
+    var storageTotalGB: Double = 128.0
+    var batteryPercent: Int = 76
+    var isCharging: Bool = false
 }
