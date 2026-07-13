@@ -42,7 +42,7 @@ struct HistoryView: View {
                 }
                 .padding(.horizontal, LumaSpacing.md)
                 .padding(.top, LumaSpacing.xxl)
-                .padding(.bottom, LumaSpacing.xxl)
+                .padding(.bottom, 104)
 
                 if filtered.isEmpty {
                     Text("Ничего не найдено")
@@ -110,9 +110,9 @@ struct HistoryView: View {
             }
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(LumaColor.textPrimary)
-                .frame(width: 40, height: 40)
+                .frame(width: 48, height: 48)
                 .glassSurface(cornerRadius: LumaRadius.pill)
         }
     }
@@ -134,7 +134,7 @@ struct HistoryView: View {
             }
         }
         .padding(.horizontal, LumaSpacing.sm)
-        .frame(height: 40)
+        .frame(height: 48)
         .glassSurface(cornerRadius: LumaRadius.pill)
         .onAppear { searchFocused = true }
     }
@@ -145,9 +145,9 @@ struct HistoryView: View {
                 withAnimation(.easeOut(duration: 0.2)) { isSearching = true }
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(LumaColor.textPrimary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 56, height: 56)
                     .glassSurface(cornerRadius: LumaRadius.pill)
             }
 
@@ -168,14 +168,14 @@ struct HistoryView: View {
                 }
             } label: {
                 Image(systemName: "square.and.pencil")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(LumaColor.onAccent)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 56, height: 56)
                     .background(LumaColor.accent, in: Circle())
             }
         }
         .padding(.horizontal, LumaSpacing.md)
-        .padding(.bottom, LumaSpacing.xs)
+        .padding(.bottom, LumaSpacing.sm)
     }
 
     private func card(for conversation: Conversation) -> some View {

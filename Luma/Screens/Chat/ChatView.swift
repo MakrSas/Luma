@@ -146,57 +146,60 @@ struct ChatView: View {
         }
     }
 
-    /// Siri-style input bar: a leading "+" opens model/intelligence controls
-    /// (per DESIGN.md there is no microphone — everything that used to sit in
-    /// a chip row above the field now lives behind "+"), a pill text field,
-    /// and a compact round send/stop button.
+    /// Siri-style input bar: three separate elements (not one fused capsule)
+    /// — a standalone "+" circle opening model/intelligence controls (per
+    /// DESIGN.md there is no microphone — everything that used to sit in a
+    /// chip row above the field now lives behind "+"), a prominent pill text
+    /// field, and a standalone round send/stop button.
     private var inputBar: some View {
-        HStack(alignment: .center, spacing: LumaSpacing.xs) {
-            Menu {
-                Button {
-                    showModelPicker = true
+        LumaGlass.container(spacing: LumaSpacing.xs) {
+            HStack(alignment: .center, spacing: LumaSpacing.xs) {
+                Menu {
+                    Button {
+                        showModelPicker = true
+                    } label: {
+                        Label(appState.selectedModel().name, systemImage: "cube.fill")
+                    }
+                    Button {
+                        showIntelligencePicker = true
+                    } label: {
+                        Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
+                    }
                 } label: {
-                    Label(appState.selectedModel().name, systemImage: "cube.fill")
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(LumaColor.textPrimary)
+                        .frame(width: 44, height: 44)
+                        .glassSurface(cornerRadius: LumaRadius.pill)
                 }
+
+                TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
+                    .font(LumaType.body)
+                    .lineLimit(1...5)
+                    .focused($inputFocused)
+                    .padding(.horizontal, LumaSpacing.md)
+                    .frame(minHeight: 44)
+                    .glassSurface(cornerRadius: LumaRadius.pill)
+
                 Button {
-                    showIntelligencePicker = true
+                    if isGenerating {
+                        stopGeneration()
+                    } else {
+                        sendMessage()
+                    }
                 } label: {
-                    Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
+                    Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(LumaColor.onAccent)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3),
+                            in: Circle()
+                        )
                 }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(LumaColor.textPrimary)
-                    .frame(width: 30, height: 30)
+                .disabled(!isGenerating && !canSend)
             }
-
-            TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
-                .font(LumaType.body)
-                .lineLimit(1...5)
-                .focused($inputFocused)
-
-            Button {
-                if isGenerating {
-                    stopGeneration()
-                } else {
-                    sendMessage()
-                }
-            } label: {
-                Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(LumaColor.onAccent)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3),
-                        in: Circle()
-                    )
-            }
-            .disabled(!isGenerating && !canSend)
         }
-        .padding(.leading, LumaSpacing.sm)
-        .padding(.trailing, LumaSpacing.xxs)
-        .padding(.vertical, LumaSpacing.xxs)
-        .glassSurface(cornerRadius: LumaRadius.pill)
         .padding(.horizontal, LumaSpacing.md)
         .padding(.top, LumaSpacing.xs)
         .padding(.bottom, LumaSpacing.xs)
