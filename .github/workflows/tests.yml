@@ -38,6 +38,7 @@ jobs:
             -project Luma.xcodeproj \
             -scheme Luma \
             -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Upload test logs on failure
