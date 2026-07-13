@@ -18,6 +18,11 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
 
+packages:
+  LocalLLMClient:
+    url: https://github.com/tattn/LocalLLMClient.git
+    from: 0.5.0
+
 targets:
   Luma:
     type: application
@@ -57,6 +62,12 @@ targets:
     dependencies:
       - target: LumaWidgetsExtension
         embed: true
+      - package: LocalLLMClient
+        product: LocalLLMClient
+      - package: LocalLLMClient
+        product: LocalLLMClientLlama
+      - package: LocalLLMClient
+        product: LocalLLMClientUtility
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.makrsas.luma
