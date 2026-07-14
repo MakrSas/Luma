@@ -219,117 +219,164 @@ struct ChatView: View {
         draft = ""
         inputFocused = false
         messages.append(ChatMessage(id: UUID(), role: .user, text: text, createdAt: .now))
-        simulateAssistantReply()
+        generateReply(for: text)
     }
 
     private func stopGeneration() {
         isGenerating = false
+        appState.inferenceEngine.cancelGeneration()
         status = .idle
         if let idx = messages.lastIndex(where: { $0.isStreaming }) {
             messages[idx].isStreaming = false
         }
     }
 
-    private func simulateAssistantReply() {
+    /// Real reply generation. The widget intent below (battery/storage
+    /// keywords) stands in for the real tool-call decision `Planner`/
+    /// `ToolRegistry` will make in Stage 3 — but the widget's own numbers
+    /// come from `DeviceStatusProvider`'s live `UIDevice`/`FileManager`
+    /// reads, and free-form replies are real generation from the selected
+    /// downloaded model via `AppState.inferenceEngine`, not canned text.
+    private func generateReply(for prompt: String) {
         isGenerating = true
         status = .thinking
-        let replyID = UUID()
-        let reply = MockReplyGenerator.reply(for: messages.last?.text ?? "")
-        let introText: String
-        let trailingWidgets: [AnswerWidget]?
-        switch reply {
-        case .text(let text):
-            introText = text
-            trailingWidgets = nil
-        case .widgets(let intro, let widgets):
-            introText = intro
-            trailingWidgets = widgets
+
+        if let deviceWidgets = DeviceIntent.detect(in: prompt) {
+            let replyID = UUID()
+            Task {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard isGenerating else { return }
+                await MainActor.run {
+                    status = .idle
+                    messages.append(ChatMessage(id: replyID, role: .assistant, text: deviceWidgets.intro, createdAt: .now))
+                    messages.append(ChatMessage(id: UUID(), role: .widgets, text: "", createdAt: .now, widgets: deviceWidgets.widgets))
+                    isGenerating = false
+                }
+            }
+            return
         }
 
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            guard isGenerating else { return }
-            await MainActor.run {
-                status = .generating
-                messages.append(ChatMessage(id: replyID, role: .assistant, text: "", createdAt: .now, isStreaming: true))
-            }
-
-            var shown = ""
-            for character in introText {
-                try? await Task.sleep(nanoseconds: 18_000_000)
-                guard isGenerating else { return }
-                shown.append(character)
-                let snapshot = shown
+        guard appState.selectedModel().downloadState == .installed else {
+            let replyID = UUID()
+            Task {
+                try? await Task.sleep(nanoseconds: 300_000_000)
                 await MainActor.run {
-                    if let idx = messages.firstIndex(where: { $0.id == replyID }) {
-                        messages[idx].text = snapshot
+                    status = .idle
+                    isGenerating = false
+                    messages.append(ChatMessage(
+                        id: replyID,
+                        role: .assistant,
+                        text: "Скачайте модель в каталоге, чтобы Luma могла отвечать на вопросы. Пока ни одна модель не установлена.",
+                        createdAt: .now
+                    ))
+                }
+            }
+            return
+        }
+
+        let replyID = UUID()
+        let history = messages
+            .filter { $0.role == .user || $0.role == .assistant }
+            .suffix(12)
+            .map { (role: $0.role == .user ? InferenceRole.user : .assistant, text: $0.text) }
+        let request = InferenceRequest(
+            systemPrompt: "Ты — полезный локальный ассистент на iPhone. Отвечай кратко и по существу, на русском языке (если пользователь не пишет на другом). Никогда не представляйся названием приложения и не говори «я Luma».",
+            messages: Array(history)
+        )
+
+        Task {
+            do {
+                let modelURL = ModelDownloader.localDirectory(for: appState.selectedModel())
+                try await appState.inferenceEngine.load(modelFileURL: modelURL)
+                await MainActor.run {
+                    status = .generating
+                    messages.append(ChatMessage(id: replyID, role: .assistant, text: "", createdAt: .now, isStreaming: true))
+                }
+                for try await token in appState.inferenceEngine.generate(request) {
+                    guard isGenerating else { return }
+                    await MainActor.run {
+                        if let idx = messages.firstIndex(where: { $0.id == replyID }) {
+                            messages[idx].text += token
+                        }
                     }
                 }
-            }
-            await MainActor.run {
-                if let idx = messages.firstIndex(where: { $0.id == replyID }) {
-                    messages[idx].isStreaming = false
+                await MainActor.run {
+                    if let idx = messages.firstIndex(where: { $0.id == replyID }) {
+                        messages[idx].isStreaming = false
+                    }
+                    isGenerating = false
+                    status = .idle
                 }
-                if let trailingWidgets {
-                    messages.append(ChatMessage(id: UUID(), role: .widgets, text: "", createdAt: .now, widgets: trailingWidgets))
+            } catch is CancellationError {
+                await MainActor.run {
+                    if let idx = messages.firstIndex(where: { $0.id == replyID }) {
+                        messages[idx].isStreaming = false
+                        if messages[idx].text.isEmpty {
+                            messages.remove(at: idx)
+                        }
+                    }
+                    isGenerating = false
+                    status = .idle
                 }
-                isGenerating = false
-                status = .idle
+            } catch {
+                await MainActor.run {
+                    if let idx = messages.firstIndex(where: { $0.id == replyID }) {
+                        messages[idx].text = "Не удалось сгенерировать ответ: \(error.localizedDescription)"
+                        messages[idx].isStreaming = false
+                    } else {
+                        messages.append(ChatMessage(id: replyID, role: .assistant, text: "Не удалось сгенерировать ответ: \(error.localizedDescription)", createdAt: .now))
+                    }
+                    isGenerating = false
+                    status = .idle
+                }
             }
         }
     }
 }
 
-/// Stage 1 has no real agent yet, but this stands in for the moment a real
-/// run would call `get_device_status` and decide the result reads better as
-/// a native widget than as prose — the same `AnswerWidget` catalog a real
-/// agent will compose from later (see ARCHITECTURE.md).
-private enum MockReply {
-    case text(String)
-    case widgets(intro: String, widgets: [AnswerWidget])
-}
-
-private enum MockReplyGenerator {
-    static func reply(for prompt: String) -> MockReply {
+/// Keyword heuristic standing in for a real tool-call decision (see
+/// `generateReply`) — but the numbers it attaches are always real.
+private enum DeviceIntent {
+    static func detect(in prompt: String) -> (intro: String, widgets: [AnswerWidget])? {
         let lower = prompt.lowercased()
         let asksBattery = lower.contains("процент") || lower.contains("батаре") || lower.contains("заряд")
         let asksStorage = lower.contains("память") || lower.contains("хранилищ") || lower.contains("места") || lower.contains("диск")
 
         if asksBattery && asksStorage {
-            return .widgets(intro: "Вот текущий статус устройства:", widgets: [batteryWidget(kind: .squareTile), storageWidget(kind: .squareTile)])
+            return ("Вот текущий статус устройства:", [batteryWidget(kind: .squareTile), storageWidget(kind: .squareTile)])
         }
         if asksBattery {
-            return .widgets(intro: "Сейчас на iPhone:", widgets: [batteryWidget(kind: .compactMetric)])
+            return ("Сейчас на iPhone:", [batteryWidget(kind: .compactMetric)])
         }
         if asksStorage {
-            return .widgets(intro: "Свободное место на устройстве:", widgets: [storageWidget(kind: .compactMetric)])
+            return ("Свободное место на устройстве:", [storageWidget(kind: .compactMetric)])
         }
-        return .text("Это демонстрационный ответ на моковых данных. На Этапе 1 модель ещё не подключена — здесь показывается потоковая генерация текста и общий вид интерфейса.")
+        return nil
     }
 
     /// Matches the real Battery widget's color rule: white/monochrome by
     /// default, green only while charging, red only when critically low —
     /// never a green ring just because the level happens to be high.
     private static func batteryWidget(kind: AnswerWidgetKind) -> AnswerWidget {
-        let snapshot = DiagnosticsSnapshot()
-        let fraction = Double(snapshot.batteryPercent) / 100.0
-        let tint: AnswerWidgetTint = snapshot.isCharging ? .success : (snapshot.batteryPercent <= 20 ? .danger : .neutral)
+        let status = DeviceStatusProvider.batteryStatus()
+        let fraction = Double(status.percent) / 100.0
+        let tint: AnswerWidgetTint = status.isCharging ? .success : (status.percent <= 20 ? .danger : .neutral)
         return AnswerWidget(
             id: UUID(),
             kind: kind,
             symbolName: "iphone",
-            badgeSymbolName: snapshot.isCharging ? "bolt.fill" : nil,
+            badgeSymbolName: status.isCharging ? "bolt.fill" : nil,
             progress: fraction,
             tint: tint,
-            valueText: "\(snapshot.batteryPercent) %",
+            valueText: "\(status.percent) %",
             detailText: nil,
             caption: "Аккумулятор"
         )
     }
 
     private static func storageWidget(kind: AnswerWidgetKind) -> AnswerWidget {
-        let snapshot = DiagnosticsSnapshot()
-        let fraction = snapshot.storageAvailableGB / snapshot.storageTotalGB
+        let status = DeviceStatusProvider.storageStatus()
+        let fraction = status.totalGB > 0 ? status.freeGB / status.totalGB : 0
         return AnswerWidget(
             id: UUID(),
             kind: kind,
@@ -337,7 +384,7 @@ private enum MockReplyGenerator {
             badgeSymbolName: nil,
             progress: fraction,
             tint: .neutral,
-            valueText: "\(Int(snapshot.storageAvailableGB)) ГБ",
+            valueText: "\(Int(status.freeGB)) ГБ",
             detailText: nil,
             caption: "Свободно"
         )

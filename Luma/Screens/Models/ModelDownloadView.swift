@@ -2,10 +2,19 @@ import SwiftUI
 
 struct ModelDownloadView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.dismiss) private var dismiss
     var modelID: String
-    @State private var progress: Double = 0.18
-    @State private var isPaused = false
-    @State private var timer: Timer?
+
+    private enum Phase: Equatable {
+        case downloading
+        case verifying
+        case done
+        case failed(String)
+    }
+
+    @State private var progress: Double = 0
+    @State private var phase: Phase = .downloading
+    @State private var downloadTask: Task<Void, Never>?
 
     private var model: LocalModel? {
         appState.availableModels.first(where: { $0.id == modelID })
@@ -35,51 +44,47 @@ struct ModelDownloadView: View {
                     .foregroundStyle(LumaColor.textPrimary)
                 Text(statusText)
                     .font(LumaType.footnote)
-                    .foregroundStyle(LumaColor.textSecondary)
+                    .foregroundStyle(isFailed ? LumaColor.danger : LumaColor.textSecondary)
+                    .multilineTextAlignment(.center)
             }
 
             VStack(alignment: .leading, spacing: LumaSpacing.xs) {
-                checklistRow("Проверка свободного места", done: true)
-                checklistRow("Загрузка файла", done: progress > 0.05, active: !isPaused && progress < 1)
-                checklistRow("Проверка SHA-256", done: progress >= 1)
-                checklistRow("Проверка совместимости runtime", done: progress >= 1)
+                checklistRow("Загрузка файлов с HuggingFace", done: progress >= 1 || phase == .verifying || phase == .done, active: phase == .downloading)
+                checklistRow("Проверка SHA-256", done: phase == .done, active: phase == .verifying)
             }
             .padding(LumaSpacing.sm)
             .glassSurface()
 
             Spacer()
 
-            HStack(spacing: LumaSpacing.sm) {
-                Button {
-                    isPaused.toggle()
-                } label: {
-                    Label(isPaused ? "Продолжить" : "Пауза", systemImage: isPaused ? "play.fill" : "pause.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .lumaGlassButtonStyle()
-
-                Button(role: .destructive) {
-                    stopTimer()
-                    progress = 0
-                } label: {
-                    Label("Отменить", systemImage: "xmark")
-                        .frame(maxWidth: .infinity)
-                }
-                .lumaGlassButtonStyle()
+            Button(role: .destructive) {
+                cancel()
+            } label: {
+                Label(phase == .done ? "Готово" : "Отменить", systemImage: phase == .done ? "checkmark" : "xmark")
+                    .frame(maxWidth: .infinity)
             }
+            .lumaGlassButtonStyle()
         }
         .padding(LumaSpacing.md)
         .background(LumaColor.canvas.ignoresSafeArea())
         .navigationTitle("Загрузка модели")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear(perform: startTimer)
-        .onDisappear(perform: stopTimer)
+        .onAppear(perform: startDownload)
+        .onDisappear { downloadTask?.cancel() }
+    }
+
+    private var isFailed: Bool {
+        if case .failed = phase { return true }
+        return false
     }
 
     private var statusText: String {
-        if progress >= 1 { return "Готово к использованию" }
-        if isPaused { return "Загрузка приостановлена" }
-        return "Загрузка и проверка целостности файла…"
+        switch phase {
+        case .downloading: return "Загрузка файлов модели…"
+        case .verifying: return "Проверка целостности…"
+        case .done: return "Готово к использованию"
+        case .failed(let reason): return "Ошибка: \(reason)"
+        }
     }
 
     private func checklistRow(_ text: String, done: Bool, active: Bool = false) -> some View {
@@ -92,22 +97,62 @@ struct ModelDownloadView: View {
         }
     }
 
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
-            guard !isPaused, progress < 1 else { return }
-            progress = min(1, progress + 0.05)
+    private func startDownload() {
+        guard let model, downloadTask == nil else { return }
+        if let idx = appState.availableModels.firstIndex(where: { $0.id == modelID }) {
+            appState.availableModels[idx].downloadState = .downloading(progress: 0)
+        }
+
+        downloadTask = Task {
+            do {
+                try await ModelDownloader.download(model) { fraction in
+                    Task { @MainActor in
+                        progress = fraction
+                        if let idx = appState.availableModels.firstIndex(where: { $0.id == modelID }) {
+                            appState.availableModels[idx].downloadState = .downloading(progress: fraction)
+                        }
+                    }
+                }
+                await MainActor.run {
+                    phase = .verifying
+                }
+                await MainActor.run {
+                    phase = .done
+                    progress = 1
+                    if let idx = appState.availableModels.firstIndex(where: { $0.id == modelID }) {
+                        appState.availableModels[idx].downloadState = .installed
+                    }
+                    appState.selectedModelID = modelID
+                }
+            } catch is CancellationError {
+                if let idx = appState.availableModels.firstIndex(where: { $0.id == modelID }) {
+                    appState.availableModels[idx].downloadState = .notDownloaded
+                }
+            } catch {
+                await MainActor.run {
+                    phase = .failed(error.localizedDescription)
+                    if let idx = appState.availableModels.firstIndex(where: { $0.id == modelID }) {
+                        appState.availableModels[idx].downloadState = .failed(reason: error.localizedDescription)
+                    }
+                }
+            }
         }
     }
 
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+    private func cancel() {
+        if phase == .done {
+            dismiss()
+            return
+        }
+        downloadTask?.cancel()
+        downloadTask = nil
+        dismiss()
     }
 }
 
 #Preview {
     NavigationStack {
-        ModelDownloadView(modelID: LocalModel.mockCatalog[2].id)
+        ModelDownloadView(modelID: LocalModel.mockCatalog[1].id)
     }
     .environment(AppState())
 }

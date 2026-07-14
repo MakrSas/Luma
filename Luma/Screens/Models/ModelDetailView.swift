@@ -130,7 +130,7 @@ struct ModelDetailView: View {
             }
             .lumaGlassProminentButtonStyle()
             .disabled(!model!.isCompatibleWithDevice)
-        case .downloading, .paused, .verifying:
+        case .downloading, .verifying:
             Button {
                 path.append(Route.modelDownload(model!.id))
             } label: {
@@ -140,7 +140,7 @@ struct ModelDetailView: View {
             .lumaGlassButtonStyle()
         case .installed:
             Button(role: .destructive) {
-                // Mock-only in Stage 1.
+                deleteModel()
             } label: {
                 Label("Удалить модель", systemImage: "trash")
                     .frame(maxWidth: .infinity)
@@ -154,6 +154,16 @@ struct ModelDetailView: View {
                     .frame(maxWidth: .infinity)
             }
             .lumaGlassProminentButtonStyle()
+        }
+    }
+
+    private func deleteModel() {
+        guard let idx = appState.availableModels.firstIndex(where: { $0.id == modelID }) else { return }
+        ModelDownloader.delete(appState.availableModels[idx])
+        appState.availableModels[idx].downloadState = .notDownloaded
+        if appState.selectedModelID == modelID {
+            appState.selectedModelID = appState.availableModels.first(where: { $0.downloadState == .installed })?.id
+                ?? appState.availableModels[0].id
         }
     }
 }

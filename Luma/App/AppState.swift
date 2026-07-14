@@ -1,15 +1,18 @@
 import SwiftUI
 import Observation
 
-/// Root observable app state for Stage 1 (mock data only).
+/// Root observable app state. Most catalogs here (conversations, memory,
+/// permissions, action log) are still Stage 1 mock data — but `availableModels`
+/// and `selectedModelID` reflect real files on disk (see `ModelDownloader`)
+/// and drive the real `MLXInferenceEngine`.
 @Observable
 final class AppState {
     var conversations: [Conversation] = Conversation.mockList
     var activeConversationID: Conversation.ID?
     var temporaryConversation: Conversation?
 
-    var availableModels: [LocalModel] = LocalModel.mockCatalog
-    var selectedModelID: LocalModel.ID = LocalModel.mockCatalog.first(where: { $0.isRecommended })?.id ?? LocalModel.mockCatalog[0].id
+    var availableModels: [LocalModel]
+    var selectedModelID: LocalModel.ID
 
     var intelligenceMode: IntelligenceMode = .auto
     var permissions: [ToolPermission] = ToolPermission.mockList
@@ -17,6 +20,21 @@ final class AppState {
     var memoryMode: MemoryMode = .askBeforeSaving
     var actionLog: [ActionLogEntry] = ActionLogEntry.mockList
     var performanceProfile: PerformanceProfile = .balanced
+
+    let inferenceEngine: LocalInferenceEngine = MLXInferenceEngine()
+
+    init() {
+        availableModels = LocalModel.mockCatalog.map { model in
+            var model = model
+            if ModelDownloader.isDownloaded(model) {
+                model.downloadState = .installed
+            }
+            return model
+        }
+        selectedModelID = availableModels.first(where: { $0.downloadState == .installed })?.id
+            ?? availableModels.first(where: { $0.isRecommended })?.id
+            ?? availableModels[0].id
+    }
 
     func conversation(id: UUID) -> Conversation? {
         conversations.first(where: { $0.id == id }) ?? (temporaryConversation?.id == id ? temporaryConversation : nil)

@@ -68,17 +68,23 @@ Xcode.
   `RetryPolicy`, `LoopProtection`. Сюда же относится реальный выбор
   представления ответа (обычный текст / `RichAnswerCard` / один или
   несколько `AnswerWidget`) на основе структуры результата инструмента —
-  на Этапе 1 это делает ключевыми словами `MockReplyGenerator` в
-  `ChatView.swift`, но сам каталог виджетов (`Luma/Models/AnswerWidget.swift`,
-  `Luma/Screens/Chat/AnswerWidgetView.swift`) уже настоящий, не мок.
+  на Этапе 1 это делает ключевыми словами `DeviceIntent` в `ChatView.swift`,
+  но сам каталог виджетов (`Luma/Models/AnswerWidget.swift`,
+  `Luma/Screens/Chat/AnswerWidgetView.swift`) и данные, которые он
+  показывает (`DeviceStatusProvider`), уже настоящие, не мок.
 - **Этап 4 (память)**: `MemoryStore`, `MemoryExtractor`, `MemoryRetriever`,
   `MemoryRanker`, `MemoryDeduplicator`, `MemoryPolicy`,
   `MemoryContextBuilder`, `MemoryEncryption` (Keychain-backed), `MemoryImportExport`,
   `EmbeddingProvider`.
-- **Этап 5 (локальная модель)**: базовый реальный инференс уже есть (см.
-  ниже) — остаётся полноценный манифест каталога (встроенный + удалённый
-  JSON) и возобновляемая многофайловая загрузка со сверкой прогресса по
-  каждому файлу.
+- **Этап 5 (локальная модель)**: базовый реальный инференс и реальная
+  загрузка уже есть (см. ниже) — остаётся полноценный манифест каталога
+  (встроенный + удалённый JSON) и настоящее возобновление прерванной
+  загрузки на уровне отдельного файла (сейчас «резюме» — на уровне целых
+  файлов, см. `KNOWN_ISSUES.md`).
+- **Этап 6 (Dynamic Island и фон)**: реальные `Activity<LumaAgentActivityAttributes>`
+  из приложения, `BackgroundTasks` для возобновления приостановленных
+  `AgentRun`.
+- **Этап 7**: оптимизация под 6 ГБ ОЗУ, полное покрытие тестами.
 
 ## Реальный локальный инференс (внедрён раньше графика)
 
@@ -124,14 +130,26 @@ object literals» (введён тип `ObjectKey`), выпущенного ка
   явное состояние «модель не скачана» (не смешивается с реальным ответом).
 - `Luma/Inference/MLXInferenceEngine.swift` — обёртка над
   `LocalLLMClientMLX.MLXClient`, потоковая генерация.
+- `Luma/Services/ModelDownloader.swift` — настоящая загрузка каждого файла
+  модели с HuggingFace (`resolve/main/<filename>`) через
+  `URLSessionDownloadDelegate` с побайтовым прогрессом, с проверкой
+  SHA-256 файла весов (`CryptoKit`) против значения из
+  `Luma/Models/LocalModel.swift` (взято из HuggingFace API, не выдумано).
+  Файлы, уже присутствующие на диске с прошлой прерванной попытки,
+  пропускаются — это и есть текущая форма «резюме» (на уровне файла
+  целиком, не байтового диапазона — честно зафиксировано как ограничение
+  в `KNOWN_ISSUES.md`).
+- `Luma/Services/DeviceStatusProvider.swift` — реальные `UIDevice.batteryLevel`/
+  `batteryState` и `URLResourceKey.volumeAvailableCapacityForImportantUsageKey`,
+  вместо моковых чисел `DiagnosticsSnapshot` — именно эти данные попадают
+  в `AnswerWidget`, когда пользователь спрашивает про заряд/память в чате.
+- `AppState.init()` сканирует диск (`ModelDownloader.isDownloaded`) и
+  проставляет `.installed` тем моделям каталога, что уже скачаны —
+  `availableModels` больше не считается чистым моком.
 
 Если апстрим когда-нибудь починит `LocalLLMClientLlamaC` (issue #94), можно
 будет добавить `LlamaInferenceEngine` как альтернативный бэкенд для
 GGUF-моделей, не трогая протокол `LocalInferenceEngine`.
-- **Этап 6 (Dynamic Island и фон)**: реальные `Activity<LumaAgentActivityAttributes>`
-  из приложения, `BackgroundTasks` для возобновления приостановленных
-  `AgentRun`.
-- **Этап 7**: оптимизация под 6 ГБ ОЗУ, полное покрытие тестами.
 
 ## Тесты
 

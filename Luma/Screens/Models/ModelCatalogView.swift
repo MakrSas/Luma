@@ -106,9 +106,6 @@ struct ModelCatalogRow: View {
             ProgressView(value: progress)
                 .progressViewStyle(.circular)
                 .controlSize(.small)
-        case .paused:
-            Image(systemName: "pause.circle.fill")
-                .foregroundStyle(LumaColor.warning)
         case .verifying:
             ProgressView()
                 .controlSize(.small)
