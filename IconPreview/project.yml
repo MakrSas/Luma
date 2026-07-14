@@ -10,6 +10,11 @@ targets:
     platform: iOS
     sources:
       - path: IconPreviewApp
+        excludes:
+          - "AppIcon.icon/**"
+      - path: IconPreviewApp/AppIcon.icon
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.makrsas.iconpreview
