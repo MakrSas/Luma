@@ -16,10 +16,3 @@ enum LumaRadius {
     static let large: CGFloat = 28
     static let pill: CGFloat = 999
 }
-
-enum LumaSize {
-    /// Every standalone circular icon button (chat "+"/send, history
-    /// filter/search/compose) shares this one diameter — previously these
-    /// ranged from 44 to 56pt across screens with no consistent rule.
-    static let iconButton: CGFloat = 48
-}
