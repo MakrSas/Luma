@@ -2,7 +2,7 @@ name: Icon Preview
 
 on:
   push:
-    branches: [main]
+    branches: [main, icon-preview]
     paths:
       - 'IconPreview/**'
       - '.github/workflows/icon-preview.yml'
