@@ -24,16 +24,17 @@ final class AppState {
     let inferenceEngine: LocalInferenceEngine = MLXInferenceEngine()
 
     init() {
-        availableModels = LocalModel.mockCatalog.map { model in
+        let models = LocalModel.mockCatalog.map { model -> LocalModel in
             var model = model
             if ModelDownloader.isDownloaded(model) {
                 model.downloadState = .installed
             }
             return model
         }
-        selectedModelID = availableModels.first(where: { $0.downloadState == .installed })?.id
-            ?? availableModels.first(where: { $0.isRecommended })?.id
-            ?? availableModels[0].id
+        availableModels = models
+        selectedModelID = models.first(where: { $0.downloadState == .installed })?.id
+            ?? models.first(where: { $0.isRecommended })?.id
+            ?? models[0].id
     }
 
     func conversation(id: UUID) -> Conversation? {
