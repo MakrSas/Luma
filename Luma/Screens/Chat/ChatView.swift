@@ -1,4 +1,5 @@
 import SwiftUI
+import LocalLLMClient
 
 enum AgentStatus: Equatable {
     case idle
@@ -231,30 +232,15 @@ struct ChatView: View {
         }
     }
 
-    /// Real reply generation. The widget intent below (battery/storage
-    /// keywords) stands in for the real tool-call decision `Planner`/
-    /// `ToolRegistry` will make in Stage 3 — but the widget's own numbers
-    /// come from `DeviceStatusProvider`'s live `UIDevice`/`FileManager`
-    /// reads, and free-form replies are real generation from the selected
-    /// downloaded model via `AppState.inferenceEngine`, not canned text.
+    /// Real reply generation, real tool-calling: the model decides for
+    /// itself — via `DeviceTools` structured function-calling, not keyword
+    /// matching — whether it needs to check the battery, storage, or iOS
+    /// version before answering. See `MLXInferenceEngine.generate` for the
+    /// manual agent loop (the library detects tool calls but doesn't
+    /// execute or continue on its own).
     private func generateReply(for prompt: String) {
         isGenerating = true
         status = .thinking
-
-        if let deviceWidgets = DeviceIntent.detect(in: prompt) {
-            let replyID = UUID()
-            Task {
-                try? await Task.sleep(nanoseconds: 300_000_000)
-                guard isGenerating else { return }
-                await MainActor.run {
-                    status = .idle
-                    messages.append(ChatMessage(id: replyID, role: .assistant, text: deviceWidgets.intro, createdAt: .now))
-                    messages.append(ChatMessage(id: UUID(), role: .widgets, text: "", createdAt: .now, widgets: deviceWidgets.widgets))
-                    isGenerating = false
-                }
-            }
-            return
-        }
 
         guard appState.selectedModel().downloadState == .installed else {
             let replyID = UUID()
@@ -282,7 +268,7 @@ struct ChatView: View {
         let request = InferenceRequest(
             systemPrompt: """
             Ты — полезный локальный ассистент на iPhone. Отвечай кратко и по существу, на русском языке (если пользователь не пишет на другом). Никогда не представляйся названием приложения и не говори «я Luma».
-            У тебя нет доступа к интернету, часам, файлам пользователя и данным устройства (заряд, память, версия системы и т.п.) — если тебя спрашивают о чём-то из этого, честно скажи, что не можешь это проверить, и не придумывай ответ, не пиши плейсхолдеры вроде «[ваша версия iOS]».
+            У тебя есть инструменты для проверки заряда батареи, свободного места и версии iOS — используй их, если вопрос об этом. Для всего остального, чего не можешь проверить (интернет, время, файлы пользователя), честно скажи, что не можешь это проверить, и не придумывай ответ.
             """,
             messages: Array(history)
         )
@@ -290,22 +276,34 @@ struct ChatView: View {
         Task {
             do {
                 let modelURL = ModelDownloader.localDirectory(for: appState.selectedModel())
-                try await appState.inferenceEngine.load(modelFileURL: modelURL)
+                try await appState.inferenceEngine.load(modelFileURL: modelURL, tools: DeviceTools.all)
                 await MainActor.run {
                     status = .generating
                     messages.append(ChatMessage(id: replyID, role: .assistant, text: "", createdAt: .now, isStreaming: true))
                 }
-                for try await token in appState.inferenceEngine.generate(request) {
+                var calledToolNames: [String] = []
+                for try await event in appState.inferenceEngine.generate(request) {
                     guard isGenerating else { return }
-                    await MainActor.run {
-                        if let idx = messages.firstIndex(where: { $0.id == replyID }) {
-                            messages[idx].text += token
+                    switch event {
+                    case .token(let text):
+                        await MainActor.run {
+                            status = .generating
+                            if let idx = messages.firstIndex(where: { $0.id == replyID }) {
+                                messages[idx].text += text
+                            }
                         }
+                    case .toolCall(let name):
+                        calledToolNames.append(name)
+                        await MainActor.run { status = .runningTool(DeviceToolWidgets.friendlyName(for: name)) }
                     }
                 }
                 await MainActor.run {
                     if let idx = messages.firstIndex(where: { $0.id == replyID }) {
                         messages[idx].isStreaming = false
+                    }
+                    if !calledToolNames.isEmpty {
+                        let widgets = DeviceToolWidgets.build(for: calledToolNames)
+                        messages.append(ChatMessage(id: UUID(), role: .widgets, text: "", createdAt: .now, widgets: widgets))
                     }
                     isGenerating = false
                     status = .idle
@@ -337,35 +335,32 @@ struct ChatView: View {
     }
 }
 
-/// Keyword heuristic standing in for a real tool-call decision (see
-/// `generateReply`) — but the numbers it attaches are always real. Matches
-/// on word *stems* (e.g. "памят" not "память"), because Russian declension
-/// means a literal word like "память" doesn't appear as a substring of
-/// "памяти"/"памятью" — a real gap found from an actual device transcript.
-private enum DeviceIntent {
-    static func detect(in prompt: String) -> (intro: String, widgets: [AnswerWidget])? {
-        let lower = prompt.lowercased()
-        let asksBattery = containsAny(lower, ["процент", "батаре", "заряд"])
-        let asksStorage = containsAny(lower, ["памят", "хранил", "мест", "диск"])
-        let asksSystemVersion = lower.contains("ios") || containsAny(lower, ["верси", "прошивк"])
-
-        var builders: [(AnswerWidgetKind) -> AnswerWidget] = []
-        if asksBattery { builders.append(batteryWidget) }
-        if asksStorage { builders.append(storageWidget) }
-        if asksSystemVersion { builders.append(systemVersionWidget) }
-        guard !builders.isEmpty else { return nil }
-
-        if builders.count == 1 {
-            let intro = asksBattery ? "Сейчас на iPhone:"
-                : asksStorage ? "Свободное место на устройстве:"
-                : "Версия системы:"
-            return (intro, [builders[0](.compactMetric)])
+/// Turns the *names* of tools the model actually chose to call into
+/// `AnswerWidget`s — the model's decision is real (see
+/// `MLXInferenceEngine`/`DeviceTools`), and so is the data displayed here
+/// (a fresh `DeviceStatusProvider` read, not whatever the tool call
+/// returned to the model — both come from the same live source, so they
+/// agree).
+private enum DeviceToolWidgets {
+    static func friendlyName(for toolName: String) -> String {
+        switch toolName {
+        case GetBatteryStatusTool.toolName: return "заряд батареи"
+        case GetStorageStatusTool.toolName: return "свободное место"
+        case GetSystemVersionTool.toolName: return "версию iOS"
+        default: return toolName
         }
-        return ("Вот текущий статус устройства:", builders.map { $0(.squareTile) })
     }
 
-    private static func containsAny(_ text: String, _ stems: [String]) -> Bool {
-        stems.contains { text.contains($0) }
+    static func build(for toolNames: [String]) -> [AnswerWidget] {
+        let kind: AnswerWidgetKind = toolNames.count == 1 ? .compactMetric : .squareTile
+        return toolNames.compactMap { name in
+            switch name {
+            case GetBatteryStatusTool.toolName: return batteryWidget(kind: kind)
+            case GetStorageStatusTool.toolName: return storageWidget(kind: kind)
+            case GetSystemVersionTool.toolName: return systemVersionWidget(kind: kind)
+            default: return nil
+            }
+        }
     }
 
     /// Matches the real Battery widget's color rule: white/monochrome by

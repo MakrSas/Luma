@@ -65,13 +65,17 @@ Xcode.
   `AgentStateMachine`, `ComplexityRouter`, `Planner`, `ToolRegistry`,
   `ToolExecutor`, `ToolCallParser`, `PermissionPolicy`,
   `ConfirmationCoordinator`, `ModelContextBuilder`, `AgentRunStore`,
-  `RetryPolicy`, `LoopProtection`. Сюда же относится реальный выбор
-  представления ответа (обычный текст / `RichAnswerCard` / один или
-  несколько `AnswerWidget`) на основе структуры результата инструмента —
-  на Этапе 1 это делает ключевыми словами `DeviceIntent` в `ChatView.swift`,
-  но сам каталог виджетов (`Luma/Models/AnswerWidget.swift`,
+  `RetryPolicy`, `LoopProtection`. `ToolRegistry`/`ToolExecutor` уже частично
+  есть раньше графика — `Luma/Inference/DeviceTools.swift` (см. «Реальный
+  локальный инференс» ниже) — но ограничены тремя инструментами устройства,
+  без полноценного реестра, разрешений и подтверждений. Выбор представления
+  ответа (обычный текст / `RichAnswerCard` / `AnswerWidget`) на основе
+  структуры результата инструмента делает `DeviceToolWidgets` в
+  `ChatView.swift` по имени вызванного инструмента (не по ключевым словам
+  из сообщения пользователя — это менялось по ходу разработки, см. ниже);
+  сам каталог виджетов (`Luma/Models/AnswerWidget.swift`,
   `Luma/Screens/Chat/AnswerWidgetView.swift`) и данные, которые он
-  показывает (`DeviceStatusProvider`), уже настоящие, не мок.
+  показывает (`DeviceStatusProvider`), настоящие.
 - **Этап 4 (память)**: `MemoryStore`, `MemoryExtractor`, `MemoryRetriever`,
   `MemoryRanker`, `MemoryDeduplicator`, `MemoryPolicy`,
   `MemoryContextBuilder`, `MemoryEncryption` (Keychain-backed), `MemoryImportExport`,
@@ -124,12 +128,26 @@ object literals» (введён тип `ObjectKey`), выпущенного ка
 репозитории `mlx-community` на HuggingFace, не на GGUF-файлы.
 
 - `Luma/Inference/LocalInferenceEngine.swift` — протокол
-  (`load`/`unload`/`generate`/`cancelGeneration`), `InferenceRequest`,
-  `InferenceError`.
+  (`load(modelFileURL:tools:)`/`unload`/`generate`/`cancelGeneration`),
+  `InferenceRequest`, `InferenceEvent` (`.token`/`.toolCall`), `InferenceError`.
 - `Luma/Inference/MockInferenceEngine.swift` — для Preview/тестов и как
   явное состояние «модель не скачана» (не смешивается с реальным ответом).
+- `Luma/Inference/DeviceTools.swift` — настоящие `LLMTool`-реализации
+  (`get_battery_status`/`get_storage_status`/`get_system_version`), каждая
+  читает `DeviceStatusProvider` напрямую. **Модель сама решает**, вызывать
+  ли инструмент — это заменило более раннюю версию с сопоставлением по
+  ключевым словам (`DeviceIntent`), которую пользователь прямо попросил
+  убрать («додумывался сам, а не по шаблону»).
 - `Luma/Inference/MLXInferenceEngine.swift` — обёртка над
-  `LocalLLMClientMLX.MLXClient`, потоковая генерация.
+  `LocalLLMClientMLX.MLXClient`. **Важная деталь реализации**: `MLXClient.
+  responseStream` только детектирует вызов инструмента и останавливает
+  поток — библиотека не выполняет инструмент и не продолжает генерацию
+  сама (проверено по исходникам, скрытого автоцикла нет). `generate`
+  реализует небольшой ручной агентный цикл: собрать вызовы инструментов
+  из `responseStream`, выполнить их через `AnyLLMTool.call(argumentsJSON:)`,
+  передать результаты в `resumeStream(withToolCalls:toolOutputs:
+  originalInput:)`, стримить финальный ответ модели, уже опирающийся на
+  реальный результат инструмента.
 - `Luma/Services/ModelDownloader.swift` — настоящая загрузка каждого файла
   модели с HuggingFace (`resolve/main/<filename>`) через
   `URLSessionDownloadDelegate` с побайтовым прогрессом, с проверкой
