@@ -2,7 +2,7 @@ import Foundation
 import LocalLLMClient
 
 /// Argument-less tools all share this empty schema.
-private struct NoArguments: Decodable, ToolSchemaGeneratable {
+struct NoArguments: Decodable, ToolSchemaGeneratable {
     static var argumentsSchema: LLMToolArgumentsSchema { [:] }
 }
 
