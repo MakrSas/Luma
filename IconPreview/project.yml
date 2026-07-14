@@ -10,6 +10,9 @@ targets:
     platform: iOS
     sources:
       - path: IconPreviewApp
+        excludes:
+          - "Resources/**"
+      - path: IconPreviewApp/Resources
         type: syncedFolder
     settings:
       base:
