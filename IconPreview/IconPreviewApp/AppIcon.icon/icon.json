@@ -1,93 +1,54 @@
 {
-  "features" : [
-    "refractivity",
-    "specular-location"
-  ],
-  "fill" : {
-    "linear-gradient" : [
-      "display-p3:0.07000,0.07000,0.07500,1.00000",
-      "display-p3:0.02000,0.02000,0.02500,1.00000"
-    ],
-    "orientation" : {
-      "start" : {
-        "x" : 0.5,
-        "y" : 0
-      },
-      "stop" : {
-        "x" : 0.5,
-        "y" : 1
-      }
-    }
-  },
-  "groups" : [
+  "groups": [
     {
-      "hidden" : false,
-      "layers" : [
+      "layers": [
         {
-          "glass" : true,
-          "image-name" : "ring.png",
-          "name" : "ring",
-          "opacity" : 1,
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
+          "image-name": "foreground.png",
+          "name": "glyph",
+          "glass": true,
+          "position": {
+            "scale": 1.75,
+            "translation-in-points": [
               0,
               0
             ]
-          }
+          },
+          "fill-specializations": [
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.96863,0.96471,0.95686,1.00000"
+              }
+            }
+          ]
         }
       ],
-      "lighting" : "individual",
-      "refractivity" : {
-        "depth" : 0.04,
-        "enabled" : true,
-        "strength" : 0.45
+      "name": "Foreground",
+      "specular": true,
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.4
       },
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "specular" : true,
-      "translucency" : {
-        "enabled" : false,
-        "value" : 0
+      "blur-material": null
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared",
+    "circles": [
+      "watchOS"
+    ]
+  },
+  "fill-specializations": [
+    {
+      "value": {
+        "solid": "srgb:0.96863,0.96471,0.95686,1.00000"
       }
     },
     {
-      "hidden" : false,
-      "layers" : [
-        {
-          "glass" : true,
-          "image-name" : "arrow.png",
-          "name" : "arrow",
-          "opacity" : 1,
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              0,
-              0
-            ]
-          }
-        }
-      ],
-      "lighting" : "individual",
-      "refractivity" : {
-        "depth" : 0.035,
-        "enabled" : true,
-        "strength" : 0.5
-      },
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "specular" : true,
-      "translucency" : {
-        "enabled" : false,
-        "value" : 0
+      "appearance": "dark",
+      "value": {
+        "solid": "srgb:0.05882,0.05882,0.06275,1.00000"
       }
     }
-  ],
-  "supported-platforms" : {
-    "squares" : "shared"
-  }
+  ]
 }

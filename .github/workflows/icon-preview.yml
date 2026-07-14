@@ -30,8 +30,9 @@ jobs:
           xcodebuild -version
 
       - name: Diagnose Icon Composer file type registration
+        timeout-minutes: 3
         run: |
-          set -eo pipefail
+          set -o pipefail
           XCODE_APP=$(xcode-select -p | sed 's|/Contents/Developer||')
           echo "Searching $XCODE_APP for Icon Composer / .icon UTI declarations..."
 
@@ -39,31 +40,27 @@ jobs:
           find "$XCODE_APP" -iname "*.xcspec" 2>/dev/null | xargs grep -l -i "iconcomposer\|icon-composer" 2>/dev/null || echo "(none)"
 
           echo "--- strings on actool binary ---"
-          strings "$XCODE_APP/Contents/Developer/usr/bin/actool" 2>/dev/null | grep -i "iconcomposer\|icon\.json\|folder\.icon\|com\.apple\..*icon" | sort -u | head -50
+          strings "$XCODE_APP/Contents/Developer/usr/bin/actool" 2>/dev/null | grep -i "iconcomposer\|icon\.json\|folder\.icon\|com\.apple\..*icon" | sort -u | head -50 || echo "(no matches)"
 
-          echo "--- strings across likely build-system frameworks/plugins (Mach-O binaries only, bounded search) ---"
-          for dir in \
-            "$XCODE_APP/Contents/SharedFrameworks" \
-            "$XCODE_APP/Contents/PlugIns" \
-            "$XCODE_APP/Contents/Developer/usr/bin" \
-            "$XCODE_APP/Contents/Developer/Library/Xcode/PrivatePlugIns" \
-            "$XCODE_APP/Contents/Frameworks"; do
-            [ -d "$dir" ] || continue
-            find "$dir" -type f \( -perm -u+x -o -name "*.dylib" \) -size -200M 2>/dev/null | while read -r bin; do
-              if strings "$bin" 2>/dev/null | grep -qi "iconcomposer"; then
-                echo "=== MATCH: $bin ==="
-                strings "$bin" 2>/dev/null | grep -i "iconcomposer" | sort -u | head -20
-              fi
-            done
+          echo "--- strings on a small bounded set of likely-relevant binaries only (fast) ---"
+          for bin in \
+            "$XCODE_APP/Contents/Developer/usr/bin/actool" \
+            "$XCODE_APP/Contents/SharedFrameworks/IDEFoundation.framework/IDEFoundation" \
+            "$XCODE_APP/Contents/SharedFrameworks/IDEKit.framework/IDEKit" \
+            "$XCODE_APP/Contents/PlugIns/IDEAssetCatalogAdapters.ideplugin/Contents/MacOS/IDEAssetCatalogAdapters"; do
+            [ -f "$bin" ] || continue
+            if strings "$bin" 2>/dev/null | grep -qi "iconcomposer"; then
+              echo "=== MATCH: $bin ==="
+              strings "$bin" 2>/dev/null | grep -i "iconcomposer" | sort -u | head -20
+            else
+              echo "(no match: $bin)"
+            fi
           done
 
           echo "--- Xcode project templates: search for AppIcon.icon / iconcomposer references ---"
-          find "$XCODE_APP/Contents/Developer/Library/Xcode/Templates" -iname "*.pbxproj" -o -iname "*project.pbxproj*" 2>/dev/null | xargs grep -l -i "AppIcon\.icon\|iconcomposer" 2>/dev/null | while read -r f; do
-            echo "=== $f ==="
-            grep -i -B2 -A2 "AppIcon\.icon\|iconcomposer\|lastKnownFileType" "$f" | head -40
-          done
+          find "$XCODE_APP/Contents/Developer/Library/Xcode/Templates" -iname "*.pbxproj" -o -iname "*project.pbxproj*" 2>/dev/null | xargs grep -l -i "AppIcon\.icon\|iconcomposer" 2>/dev/null || echo "(none)"
           echo "--- also search template dirs broadly for any file literally named *.icon or AppIcon.icon ---"
-          find "$XCODE_APP/Contents/Developer/Library/Xcode/Templates" -iname "*.icon" -o -iname "AppIcon.icon" 2>/dev/null
+          find "$XCODE_APP/Contents/Developer/Library/Xcode/Templates" -iname "*.icon" -o -iname "AppIcon.icon" 2>/dev/null || echo "(none)"
 
           echo "diagnostic complete"
         continue-on-error: true
@@ -90,10 +87,13 @@ jobs:
 
       - name: Boot simulator, install app, screenshot Home Screen
         working-directory: IconPreview
+        timeout-minutes: 5
         run: |
           set -eo pipefail
           DEVICE_ID=$(xcrun simctl list devices available | grep -E "iPhone 17 \(" | head -1 | grep -oE '[0-9A-F-]{36}')
           echo "Using simulator: $DEVICE_ID"
+          xcrun simctl shutdown "$DEVICE_ID" 2>/dev/null || true
+          xcrun simctl erase "$DEVICE_ID"
           xcrun simctl bootstatus "$DEVICE_ID" -b
           APP_PATH=$(find build/Build/Products -maxdepth 2 -name "IconPreviewApp.app" | head -1)
           echo "App: $APP_PATH"
