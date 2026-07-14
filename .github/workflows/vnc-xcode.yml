@@ -19,6 +19,18 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: icon-preview
+
+      - name: Install XcodeGen and pre-generate the IconPreview project
+        run: |
+          brew install xcodegen
+          cd IconPreview && xcodegen generate
+          echo "Project ready at: $(pwd)/IconPreview.xcodeproj"
+          echo "Real AppIcon.icon at: $(pwd)/IconPreviewApp/AppIcon.icon"
+
       - name: Select latest available Xcode
         run: |
           set -eo pipefail
