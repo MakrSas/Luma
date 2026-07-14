@@ -106,7 +106,7 @@ struct HistoryView: View {
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
                 .font(.system(size: 17, weight: .semibold))
-                .frame(width: 48, height: 48)
+                .frame(width: LumaSize.iconButton, height: LumaSize.iconButton)
         }
         .buttonBorderShape(.circle)
         .lumaGlassButtonStyle()
@@ -149,7 +149,7 @@ struct HistoryView: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, LumaSpacing.md)
-            .frame(height: 56)
+            .frame(height: LumaSize.iconButton)
             .frame(maxWidth: .infinity)
             .glassSurface(cornerRadius: LumaRadius.pill)
         } else {
@@ -161,7 +161,7 @@ struct HistoryView: View {
             } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 56, height: 56)
+                    .frame(width: LumaSize.iconButton, height: LumaSize.iconButton)
             }
             .buttonBorderShape(.circle)
             .lumaGlassButtonStyle()
@@ -176,7 +176,7 @@ struct HistoryView: View {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(LumaColor.onAccent)
-                .frame(width: 56, height: 56)
+                .frame(width: LumaSize.iconButton, height: LumaSize.iconButton)
         }
         .buttonBorderShape(.circle)
         .lumaGlassProminentButtonStyle()

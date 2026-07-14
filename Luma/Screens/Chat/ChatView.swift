@@ -170,7 +170,7 @@ struct ChatView: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .medium))
-                    .frame(width: 44, height: 44)
+                    .frame(width: LumaSize.iconButton, height: LumaSize.iconButton)
             }
             .buttonBorderShape(.circle)
             .lumaGlassButtonStyle()
@@ -193,7 +193,7 @@ struct ChatView: View {
                 Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(LumaColor.onAccent)
-                    .frame(width: 44, height: 44)
+                    .frame(width: LumaSize.iconButton, height: LumaSize.iconButton)
             }
             .buttonBorderShape(.circle)
             .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
