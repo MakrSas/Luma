@@ -1,0 +1,71 @@
+name: VNC Xcode Session
+
+# Temporary, manual-only: opens a VNC session into a real macOS Actions
+# runner (with real Xcode 26 installed) so the Icon Composer / .icon
+# project.pbxproj wiring can be inspected by hand once, since neither the
+# user nor CI has any other way to run the real Xcode GUI. Not meant to
+# run unattended or on every push.
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: 'How long to keep the session open (minutes, max 40)'
+        required: false
+        default: '30'
+
+jobs:
+  vnc:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Select latest available Xcode
+        run: |
+          set -eo pipefail
+          LATEST_XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$LATEST_XCODE"
+          xcodebuild -version
+
+      - name: Enable Screen Sharing (VNC) with a temporary password
+        run: |
+          set -eo pipefail
+          VNC_PASSWORD="Luma${{ github.run_id }}"
+          echo "vnc_password=$VNC_PASSWORD" >> "$GITHUB_ENV"
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -activate -configure -access -on \
+            -clientopts -setvnclegacy -vnclegacy yes -setvncpw -vncpw "$VNC_PASSWORD" \
+            -restart -agent -privs -all
+          echo "Screen Sharing enabled."
+
+      - name: Install and start ngrok TCP tunnel to VNC port 5900
+        env:
+          NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
+        run: |
+          set -eo pipefail
+          brew install ngrok
+          ngrok config add-authtoken "$NGROK_AUTHTOKEN"
+          nohup ngrok tcp 5900 --log=stdout > ngrok.log 2>&1 &
+          sleep 8
+          for i in 1 2 3 4 5; do
+            URL=$(curl -s http://127.0.0.1:4040/api/tunnels | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['tunnels'][0]['public_url'] if d.get('tunnels') else '')" 2>/dev/null || true)
+            [ -n "$URL" ] && break
+            sleep 3
+          done
+          echo "tunnel_url=$URL" >> "$GITHUB_ENV"
+
+      - name: Print connection info
+        run: |
+          echo "=================================================="
+          echo " VNC CONNECTION INFO"
+          echo "=================================================="
+          echo " Address:  ${tunnel_url#tcp://}"
+          echo " Password: ${vnc_password}"
+          echo "=================================================="
+          echo "Open this in RealVNC Viewer as the connection address."
+          echo "Session will stay open for ${{ github.event.inputs.minutes }} minutes."
+
+      - name: Keep session alive
+        run: |
+          MINUTES="${{ github.event.inputs.minutes }}"
+          [ "$MINUTES" -gt 40 ] 2>/dev/null && MINUTES=40
+          sleep "$((MINUTES * 60))"
