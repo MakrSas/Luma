@@ -60,14 +60,6 @@ struct HistoryView: View {
                 .padding(.top, LumaSpacing.xs)
                 .padding(.trailing, LumaSpacing.md)
         }
-        .overlay(alignment: .top) {
-            if isSearching {
-                searchBar
-                    .padding(.horizontal, LumaSpacing.md)
-                    .padding(.top, LumaSpacing.xs)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
         .toolbar(.hidden, for: .navigationBar)
         .alert("Переименовать диалог", isPresented: Binding(get: { renamingID != nil }, set: { if !$0 { renamingID = nil } })) {
             TextField("Название", text: $renameText)
@@ -117,65 +109,85 @@ struct HistoryView: View {
         }
     }
 
-    private var searchBar: some View {
-        HStack(spacing: LumaSpacing.xs) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(LumaColor.textTertiary)
-            TextField("Поиск диалогов", text: $query)
-                .font(LumaType.body)
-                .focused($searchFocused)
-            Button {
-                isSearching = false
-                query = ""
-                searchFocused = false
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(LumaColor.textTertiary)
-            }
-        }
-        .padding(.horizontal, LumaSpacing.sm)
-        .frame(height: 48)
-        .glassSurface(cornerRadius: LumaRadius.pill)
-        .onAppear { searchFocused = true }
-    }
-
+    /// Per Apple's iOS 26 Liquid Glass guidance, search lives permanently in
+    /// the bottom bar (like a tab bar's search tab), not behind an icon that
+    /// slides a field down from the top. Tapping the compact pill expands it
+    /// in place — the compose button steps aside rather than search
+    /// appearing somewhere else on screen.
     private var bottomControls: some View {
-        HStack {
-            Button {
-                withAnimation(.easeOut(duration: 0.2)) { isSearching = true }
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(LumaColor.textPrimary)
-                    .frame(width: 56, height: 56)
-                    .glassSurface(cornerRadius: LumaRadius.pill)
-            }
-
-            Spacer()
-
-            Menu {
-                Button {
-                    let id = appState.startNewConversation(temporary: false)
-                    path.append(Route.conversation(id))
-                } label: {
-                    Label("Новый диалог", systemImage: "plus.bubble")
+        LumaGlass.container(spacing: LumaSpacing.xs) {
+            HStack(spacing: LumaSpacing.xs) {
+                searchField
+                if !isSearching {
+                    Spacer(minLength: 0)
+                    composeButton
                 }
-                Button {
-                    let id = appState.startNewConversation(temporary: true)
-                    path.append(Route.conversation(id))
-                } label: {
-                    Label("Временный диалог", systemImage: "timer")
-                }
-            } label: {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(LumaColor.onAccent)
-                    .frame(width: 56, height: 56)
-                    .background(LumaColor.accent, in: Circle())
             }
         }
         .padding(.horizontal, LumaSpacing.md)
         .padding(.bottom, LumaSpacing.sm)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: LumaSpacing.xs) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(LumaColor.textSecondary)
+            if isSearching {
+                TextField("Поиск диалогов", text: $query)
+                    .font(LumaType.body)
+                    .focused($searchFocused)
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        isSearching = false
+                        query = ""
+                        searchFocused = false
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(LumaColor.textTertiary)
+                }
+            } else {
+                Text("Поиск")
+                    .font(LumaType.body)
+                    .foregroundStyle(LumaColor.textSecondary)
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, LumaSpacing.md)
+        .frame(height: 56)
+        .frame(maxWidth: isSearching ? .infinity : 140, alignment: .leading)
+        .glassSurface(cornerRadius: LumaRadius.pill)
+        .contentShape(RoundedRectangle(cornerRadius: LumaRadius.pill, style: .continuous))
+        .onTapGesture {
+            guard !isSearching else { return }
+            withAnimation(.easeOut(duration: 0.2)) {
+                isSearching = true
+                searchFocused = true
+            }
+        }
+    }
+
+    private var composeButton: some View {
+        Menu {
+            Button {
+                let id = appState.startNewConversation(temporary: false)
+                path.append(Route.conversation(id))
+            } label: {
+                Label("Новый диалог", systemImage: "plus.bubble")
+            }
+            Button {
+                let id = appState.startNewConversation(temporary: true)
+                path.append(Route.conversation(id))
+            } label: {
+                Label("Временный диалог", systemImage: "timer")
+            }
+        } label: {
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(LumaColor.onAccent)
+                .frame(width: 56, height: 56)
+                .background(LumaColor.accent, in: Circle())
+        }
     }
 
     private func card(for conversation: Conversation) -> some View {

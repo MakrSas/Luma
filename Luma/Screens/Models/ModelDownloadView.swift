@@ -62,10 +62,13 @@ struct ModelDownloadView: View {
             } label: {
                 Label(phase == .done ? "Готово" : "Отменить", systemImage: phase == .done ? "checkmark" : "xmark")
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, LumaSpacing.xxs)
             }
             .lumaGlassButtonStyle()
+            .padding(.bottom, LumaSpacing.sm)
         }
-        .padding(LumaSpacing.md)
+        .padding(.horizontal, LumaSpacing.md)
+        .padding(.top, LumaSpacing.md)
         .background(LumaColor.canvas.ignoresSafeArea())
         .navigationTitle("Загрузка модели")
         .navigationBarTitleDisplayMode(.inline)

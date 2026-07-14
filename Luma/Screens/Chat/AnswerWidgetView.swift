@@ -24,8 +24,10 @@ struct AnswerWidgetView: View {
         HStack(spacing: LumaSpacing.sm) {
             ring(diameter: 48, lineWidth: 5)
             Text(widget.valueText)
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                .font(.system(size: 30, weight: .semibold, design: .rounded))
                 .foregroundStyle(LumaColor.textPrimary)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(widget.caption): \(widget.valueText)")

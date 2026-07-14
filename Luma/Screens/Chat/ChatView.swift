@@ -280,7 +280,10 @@ struct ChatView: View {
             .suffix(12)
             .map { (role: $0.role == .user ? InferenceRole.user : .assistant, text: $0.text) }
         let request = InferenceRequest(
-            systemPrompt: "Ты — полезный локальный ассистент на iPhone. Отвечай кратко и по существу, на русском языке (если пользователь не пишет на другом). Никогда не представляйся названием приложения и не говори «я Luma».",
+            systemPrompt: """
+            Ты — полезный локальный ассистент на iPhone. Отвечай кратко и по существу, на русском языке (если пользователь не пишет на другом). Никогда не представляйся названием приложения и не говори «я Luma».
+            У тебя нет доступа к интернету, часам, файлам пользователя и данным устройства (заряд, память, версия системы и т.п.) — если тебя спрашивают о чём-то из этого, честно скажи, что не можешь это проверить, и не придумывай ответ, не пиши плейсхолдеры вроде «[ваша версия iOS]».
+            """,
             messages: Array(history)
         )
 
@@ -335,23 +338,34 @@ struct ChatView: View {
 }
 
 /// Keyword heuristic standing in for a real tool-call decision (see
-/// `generateReply`) — but the numbers it attaches are always real.
+/// `generateReply`) — but the numbers it attaches are always real. Matches
+/// on word *stems* (e.g. "памят" not "память"), because Russian declension
+/// means a literal word like "память" doesn't appear as a substring of
+/// "памяти"/"памятью" — a real gap found from an actual device transcript.
 private enum DeviceIntent {
     static func detect(in prompt: String) -> (intro: String, widgets: [AnswerWidget])? {
         let lower = prompt.lowercased()
-        let asksBattery = lower.contains("процент") || lower.contains("батаре") || lower.contains("заряд")
-        let asksStorage = lower.contains("память") || lower.contains("хранилищ") || lower.contains("места") || lower.contains("диск")
+        let asksBattery = containsAny(lower, ["процент", "батаре", "заряд"])
+        let asksStorage = containsAny(lower, ["памят", "хранил", "мест", "диск"])
+        let asksSystemVersion = lower.contains("ios") || containsAny(lower, ["верси", "прошивк"])
 
-        if asksBattery && asksStorage {
-            return ("Вот текущий статус устройства:", [batteryWidget(kind: .squareTile), storageWidget(kind: .squareTile)])
+        var builders: [(AnswerWidgetKind) -> AnswerWidget] = []
+        if asksBattery { builders.append(batteryWidget) }
+        if asksStorage { builders.append(storageWidget) }
+        if asksSystemVersion { builders.append(systemVersionWidget) }
+        guard !builders.isEmpty else { return nil }
+
+        if builders.count == 1 {
+            let intro = asksBattery ? "Сейчас на iPhone:"
+                : asksStorage ? "Свободное место на устройстве:"
+                : "Версия системы:"
+            return (intro, [builders[0](.compactMetric)])
         }
-        if asksBattery {
-            return ("Сейчас на iPhone:", [batteryWidget(kind: .compactMetric)])
-        }
-        if asksStorage {
-            return ("Свободное место на устройстве:", [storageWidget(kind: .compactMetric)])
-        }
-        return nil
+        return ("Вот текущий статус устройства:", builders.map { $0(.squareTile) })
+    }
+
+    private static func containsAny(_ text: String, _ stems: [String]) -> Bool {
+        stems.contains { text.contains($0) }
     }
 
     /// Matches the real Battery widget's color rule: white/monochrome by
@@ -387,6 +401,20 @@ private enum DeviceIntent {
             valueText: "\(Int(status.freeGB)) ГБ",
             detailText: nil,
             caption: "Свободно"
+        )
+    }
+
+    private static func systemVersionWidget(kind: AnswerWidgetKind) -> AnswerWidget {
+        AnswerWidget(
+            id: UUID(),
+            kind: kind,
+            symbolName: "gearshape.fill",
+            badgeSymbolName: nil,
+            progress: nil,
+            tint: .neutral,
+            valueText: "iOS \(DeviceStatusProvider.systemVersion)",
+            detailText: nil,
+            caption: "Версия системы"
         )
     }
 }

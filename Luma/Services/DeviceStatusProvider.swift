@@ -31,4 +31,7 @@ enum DeviceStatusProvider {
         let total = Double(values.volumeTotalCapacity ?? 0) / 1_000_000_000
         return (free, total)
     }
+
+    static var systemVersion: String { UIDevice.current.systemVersion }
+    static var deviceModelName: String { UIDevice.current.name }
 }

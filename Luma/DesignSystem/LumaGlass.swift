@@ -74,12 +74,24 @@ extension View {
         }
     }
 
-    @ViewBuilder
+    /// A custom style, not the system `.glassProminent`/`.borderedProminent`,
+    /// because those pick their own label contrast color and were rendering
+    /// white text on `LumaColor.accent` even in dark mode (where accent is
+    /// itself near-white) — unreadable. `LumaProminentButtonStyle` forces
+    /// `LumaColor.onAccent`, which is always correct by construction.
     func lumaGlassProminentButtonStyle() -> some View {
-        if #available(iOS 26.0, *) {
-            self.buttonStyle(.glassProminent).tint(LumaColor.accent)
-        } else {
-            self.buttonStyle(.borderedProminent).tint(LumaColor.accent)
-        }
+        buttonStyle(LumaProminentButtonStyle())
+    }
+}
+
+struct LumaProminentButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(LumaType.body.weight(.semibold))
+            .foregroundStyle(LumaColor.onAccent)
+            .padding(.horizontal, LumaSpacing.md)
+            .padding(.vertical, LumaSpacing.sm)
+            .background(LumaColor.accent, in: Capsule())
+            .opacity(configuration.isPressed ? 0.75 : 1)
     }
 }
