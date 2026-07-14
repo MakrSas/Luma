@@ -183,6 +183,152 @@ Wikipedia (никакого API-ключа не требуется); `FetchURLTo
 3), только общий переключатель «разрешено/спрашивать/запрещено» на уровне
 инструмента целиком — см. `KNOWN_ISSUES.md`.
 
+## App-иконка: Liquid Glass / Icon Composer без самого Icon Composer
+
+iOS 26 ввёл новый формат иконки приложения — `.icon`-пакет (папка с
+`icon.json` + слоями PNG), который система сама рендерит с бликами,
+преломлением и параллаксом (Liquid Glass), вместо одного плоского PNG.
+Штатный способ его создать — приложение Icon Composer (часть Xcode 26,
+только macOS). У пользователя нет Mac вообще (ни Metal, ни ускорения
+графики) — ниже задокументирован полный обходной путь, найденный
+методом проб и одной ручной сессии в виртуалке.
+
+### Часть 1 — собрать `.icon`-пакет без Icon Composer.app
+
+Сборка самого `.icon`-пакета (JSON-манифест + PNG-слои) не требует
+Icon Composer.app и не требует macOS — нужен только рендеринг **живых**
+бликов для предпросмотра, не для сборки файла. Инструмент:
+[`icon-composer-mcp`](https://github.com/ethbak/icon-composer-mcp)
+(npm-пакет, кроссплатформенный CLI + MCP-сервер).
+
+```bash
+# CLI-бинарь называется "icon-composer", а не "icon-composer-mcp" —
+# имя пакета и имя бинаря разные, поэтому нужен -p:
+npx -y -p icon-composer-mcp icon-composer <команда> ...
+```
+
+Рабочий процесс:
+
+1. **Готовите плоский глиф** — просто чёрная (или белая) заливка форма
+   на прозрачном PNG, без своих градиентов/бликов/теней. Система сама
+   рисует specular/blur/refraction поверх плоской формы в рантайме —
+   если дать ей уже «залакированную» картинку (типа хромированного
+   варианта), эффекты наложатся друг на друга и будет странно
+   выглядеть. Нужны обе версии — тёмная форма (для светлого фона) и
+   светлая форма (для тёмного фона), либо одна форма + перекраска через
+   `fill-specializations` (см. ниже).
+2. **Создать пакет**:
+   ```bash
+   icon-composer create glyph.png ./out --bg-color "#F7F6F4" --dark-bg-color "#0F0F10"
+   ```
+   Создаёт `./out/AppIcon.icon/` с `icon.json` + `Assets/foreground.png`,
+   с уже правильными `fill-specializations` для фона (light/dark).
+3. **Перекрасить глиф под тёмный режим** (сам глиф остаётся тем же PNG,
+   перекраска идёт через `fill-color`, не через второе изображение):
+   ```bash
+   icon-composer appearance ./out/AppIcon.icon --target layer \
+     --group-index 0 --layer-index 0 --appearance dark --fill-color "#F7F6F4"
+   ```
+4. **Подобрать масштаб глифа** (дефолт `--glyph-scale 1.75` при
+   `create` — почти всегда слишком много, глиф упирается в края):
+   ```bash
+   icon-composer position ./out/AppIcon.icon --target layer \
+     --group-index 0 --layer-index 0 --scale 1.4
+   ```
+   Удобно сравнить несколько значений сразу — `preview` рендерит
+   плоский превью-PNG (без бликов, но с правильными пропорциями/цветом)
+   на любой платформе:
+   ```bash
+   icon-composer preview ./out/AppIcon.icon preview.png --appearance light --size 180
+   ```
+5. **Проверить структуру** перед тем как коммитить:
+   ```bash
+   icon-composer inspect ./out/AppIcon.icon
+   ```
+   Валидирует JSON и список файлов; не проверяет реальный рендер (это
+   уже требует Icon Composer.app + macOS).
+
+### Часть 2 — подключить `.icon`-пакет к Xcode-проекту через XcodeGen
+
+Это была куда более сложная часть — три разных попытки подряд не
+работали:
+
+1. `.icon`-папка **внутри** `Assets.xcassets` → `actool` падает:
+   `None of the input catalogs contained a matching stickers icon set,
+   app icon set, or icon stack named "AppIcon"`.
+2. Переименование в `.appiconset` → сборка проходит, но иконка
+   пустая — `actool` просто не понял формат внутри и проигнорировал.
+3. `.icon`-папка как top-level folder reference (`type: folder` в
+   XcodeGen) рядом с `Assets.xcassets`, по инструкции из независимых
+   отчётов в интернете про Icon Composer — тоже пустая иконка: файл
+   просто копируется в бандл через `CpResource`, `actool` его вообще
+   не касается.
+
+Статический поиск (`strings`/`grep` по всему `Xcode.app`, включая
+бинарники) не нашёл никакой текстовой UTI-декларации для `.icon` —
+регистрация типа не текстовая строка, найти её так нельзя.
+
+**Настоящая причина** нашлась только через ручной эксперимент в
+реальном Xcode 26.6 (Hackintosh-виртуалка без Metal — рендеринг не
+нужен для этого шага, нужна только IDE): создан пустой проект, `.icon`
+файл перетащен в Project Navigator **на тот же уровень, что и
+Assets.xcassets** (не внутрь неё), затем `project.pbxproj` изучен
+напрямую через `cat`.
+
+Ключевое отличие: современный Xcode (16+, и это по умолчанию у любого
+нового проекта в Xcode 26) не создаёт `PBXFileReference` на каждый файл
+вообще. Вместо этого — **`PBXFileSystemSynchronizedRootGroup`**
+(«synced folders» / «buildable folders»): Xcode просто ссылается на
+папку целиком, а какие в ней source-файлы, какие ресурсы, какие
+ассет-каталоги — сканирует **при сборке**, а не хранит в pbxproj. Для
+`.icon`-файла внутри такой папки никакого `lastKnownFileType` не
+существует и не нужно — Xcode находит его по совпадению имени файла
+(без расширения) с настройкой сборки `ASSETCATALOG_COMPILER_APPICON_NAME`.
+Подтверждено дампом реального `project.pbxproj`: после добавления
+`.icon`-файла и выбора его в General → App Icon единственное отличие в
+файле — это `ASSETCATALOG_COMPILER_APPICON_NAME = "<имя файла>";`,
+больше ничего.
+
+XcodeGen поддерживает синхронизированные папки через
+`type: syncedFolder` (доступно начиная с `projectFormat: xcode16_0` —
+это дефолт). Рабочая конфигурация (см. `project.yml`):
+
+```yaml
+targets:
+  Luma:
+    sources:
+      - path: Luma
+        excludes:
+          - "Resources/AppIcon.icon/**"
+      - path: Luma/Resources/AppIcon.icon
+        type: syncedFolder
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+```
+
+Папка должна называться ровно `AppIcon.icon` (совпадать с именем в
+`ASSETCATALOG_COMPILER_APPICON_NAME`, без расширения). Старая попытка
+`type: folder` (без `syncedFolder`) даёт `lastKnownFileType = folder;`
+в pbxproj — именно это и есть настоящая причина, почему `actool` не
+подхватывал файл; дело было не в содержимом `icon.json` и не в
+XcodeGen-версии, а именно в модели файловых ссылок.
+
+Также по пути выяснилось: top-level ключ `resources:` в `project.yml`
+у XcodeGen **не задокументирован и ничего не делает** (проверено по
+`ProjectSpec.md`) — все файлы `Luma/Resources` и так подхватывались
+через основной `sources: - path: Luma`. Убран как мёртвый конфиг.
+
+### Тёмный/светлый режим — вручную, не автоматически
+
+Система **не** инвертирует/перекрашивает плоский PNG сама. Если задать
+фон и глиф одной картинкой без прозрачности — в тёмном режиме будет
+тот же светлый фон. Правильно: фон — это `fill`/`fill-specializations`
+в JSON (цвет, не картинка) с явным вариантом на `appearance: dark`; глиф
+— прозрачный PNG + `fill-specializations` слоя с явной перекраской под
+тёмный режим (см. шаг 3 выше). Оба варианта задаются руками, каждый
+отдельно.
+
 ## Тесты
 
 `LumaTests` — XCTest, таргетируется на `Luma` через `@testable import Luma`.
