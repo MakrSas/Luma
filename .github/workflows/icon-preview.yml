@@ -1,0 +1,82 @@
+name: Icon Preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'IconPreview/**'
+      - '.github/workflows/icon-preview.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: icon-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshot:
+    name: Build + screenshot Home Screen icon
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest available Xcode
+        run: |
+          set -eo pipefail
+          LATEST_XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "Selecting: $LATEST_XCODE"
+          sudo xcode-select -s "$LATEST_XCODE"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: IconPreview
+        run: xcodegen generate
+
+      - name: Build for Simulator
+        working-directory: IconPreview
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project IconPreview.xcodeproj \
+            -scheme IconPreviewApp \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -derivedDataPath build \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Boot simulator, install app, screenshot Home Screen
+        working-directory: IconPreview
+        run: |
+          set -eo pipefail
+          DEVICE_ID=$(xcrun simctl list devices available | grep -E "iPhone 17 \(" | head -1 | grep -oE '[0-9A-F-]{36}')
+          echo "Using simulator: $DEVICE_ID"
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          APP_PATH=$(find build/Build/Products -maxdepth 2 -name "IconPreviewApp.app" | head -1)
+          echo "App: $APP_PATH"
+          xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+          sleep 3
+          xcrun simctl io "$DEVICE_ID" screenshot icon-preview.png
+          xcrun simctl terminate "$DEVICE_ID" com.makrsas.iconpreview || true
+
+      - name: Upload screenshot
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: icon-preview-screenshot
+          path: IconPreview/icon-preview.png
+          retention-days: 14
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: icon-preview-logs
+          path: |
+            IconPreview/build/
+            ~/Library/Logs/DiagnosticReports
+          retention-days: 7
