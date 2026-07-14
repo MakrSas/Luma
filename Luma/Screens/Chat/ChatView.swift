@@ -172,6 +172,7 @@ struct ChatView: View {
             }
             .buttonBorderShape(.circle)
             .lumaGlassButtonStyle()
+            .frame(width: 44, height: 44)
 
             TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
                 .font(LumaType.body)
@@ -193,6 +194,7 @@ struct ChatView: View {
             }
             .buttonBorderShape(.circle)
             .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
+            .frame(width: 44, height: 44)
             .disabled(!isGenerating && !canSend)
         }
         .padding(.horizontal, LumaSpacing.md)

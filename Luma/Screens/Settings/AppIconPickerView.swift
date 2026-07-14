@@ -29,8 +29,14 @@ struct AppIconPickerView: View {
     @State private var currentIconName: String? = UIApplication.shared.alternateIconName
     @State private var errorMessage: String?
 
+    /// iOS app icons use a "squircle" — a continuous corner radius of
+    /// roughly 22.37% of the icon's side length, not an arbitrary card
+    /// radius — so previews here read as real Home Screen icons.
+    private static let iconCornerRatio: CGFloat = 0.2237
+    private static let cellSize: CGFloat = 64
+
     private let columns = [
-        GridItem(.adaptive(minimum: 96, maximum: 120), spacing: LumaSpacing.md)
+        GridItem(.adaptive(minimum: cellSize, maximum: cellSize), spacing: LumaSpacing.lg)
     ]
 
     var body: some View {
@@ -60,6 +66,7 @@ struct AppIconPickerView: View {
 
     private func iconCell(_ option: AppIconOption) -> some View {
         let isSelected = option.name == currentIconName
+        let cornerRadius = Self.cellSize * Self.iconCornerRatio
         return Button {
             select(option)
         } label: {
@@ -67,19 +74,14 @@ struct AppIconPickerView: View {
                 Image(option.previewAsset)
                     .resizable()
                     .aspectRatio(1, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
+                    .frame(width: Self.cellSize, height: Self.cellSize)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous)
-                            .strokeBorder(isSelected ? LumaColor.accent : LumaColor.separator, lineWidth: isSelected ? 2 : 0.5)
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .inset(by: -3)
+                            .strokeBorder(LumaColor.accent, lineWidth: 2)
+                            .opacity(isSelected ? 1 : 0)
                     )
-                    .overlay(alignment: .topTrailing) {
-                        if isSelected {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(LumaColor.onAccent, LumaColor.accent)
-                                .padding(6)
-                        }
-                    }
 
                 Text(option.title)
                     .font(LumaType.footnote)

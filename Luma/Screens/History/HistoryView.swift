@@ -108,6 +108,7 @@ struct HistoryView: View {
         }
         .buttonBorderShape(.circle)
         .lumaGlassButtonStyle()
+        .frame(width: 44, height: 44)
     }
 
     /// Per Apple's iOS 26 Liquid Glass guidance, search lives permanently in
@@ -161,6 +162,7 @@ struct HistoryView: View {
             }
             .buttonBorderShape(.circle)
             .lumaGlassButtonStyle()
+            .frame(width: 44, height: 44)
         }
     }
 
@@ -174,6 +176,7 @@ struct HistoryView: View {
         }
         .buttonBorderShape(.circle)
         .lumaGlassProminentButtonStyle()
+        .frame(width: 44, height: 44)
     }
 
     private func card(for conversation: Conversation) -> some View {
