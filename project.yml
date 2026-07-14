@@ -38,8 +38,10 @@ targets:
     platform: iOS
     sources:
       - path: Luma
-    resources:
-      - path: Luma/Resources
+        excludes:
+          - "Resources/AppIcon.icon/**"
+      - path: Luma/Resources/AppIcon.icon
+        type: syncedFolder
     info:
       path: Luma/Resources/Info.plist
       properties:
