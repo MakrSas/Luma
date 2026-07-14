@@ -19,6 +19,9 @@ struct SettingsHubView: View {
                 row(icon: "brain.head.profile", title: "Долговременная память", route: .memory)
                 row(icon: "list.bullet.clipboard.fill", title: "Журнал действий", route: .actionLog)
             }
+            Section("Персонализация") {
+                row(icon: "app.badge.fill", title: "Значок приложения", route: .appIconPicker)
+            }
             Section("О приложении") {
                 row(icon: "stethoscope", title: "Диагностика", route: .diagnostics)
                 row(icon: "doc.text.fill", title: "Лицензии моделей", route: .licenses)
