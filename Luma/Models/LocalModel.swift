@@ -125,6 +125,41 @@ extension LocalModel {
             isRecommended: false,
             downloadState: .notDownloaded,
             summary: "Самая маленькая и быстрая модель каталога. Годится для короткой демонстрации инструментов, но рассуждает заметно слабее — на неё не стоит полагаться в сложных вопросах."
+        ),
+        LocalModel(
+            id: "mlx-community/Qwen3-4B-4bit",
+            name: "Qwen3 4B (4-bit)",
+            developer: "Alibaba Cloud (Qwen team) · mlx-community",
+            family: "Qwen3",
+            parameterCount: "4B",
+            quantization: "MLX 4-bit",
+            requiredFiles: [
+                ModelFile(filename: "config.json", sizeBytes: 937),
+                ModelFile(filename: "tokenizer_config.json", sizeBytes: 9_706),
+                ModelFile(filename: "special_tokens_map.json", sizeBytes: 613),
+                ModelFile(filename: "added_tokens.json", sizeBytes: 707),
+                ModelFile(filename: "vocab.json", sizeBytes: 2_776_833),
+                ModelFile(filename: "merges.txt", sizeBytes: 1_671_853),
+                ModelFile(filename: "tokenizer.json", sizeBytes: 11_422_654, sha256: "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"),
+                ModelFile(filename: "model.safetensors.index.json", sizeBytes: 63_924),
+                ModelFile(
+                    filename: "model.safetensors",
+                    sizeBytes: 2_263_022_529,
+                    sha256: "e240c0bdc0ebb0681bf0da0f98d9719fd6ebe269a3633f81542c13e81345651d"
+                )
+            ],
+            estimatedRAMUsageGB: 3.6,
+            russianQuality: 4,
+            codeQuality: 4,
+            toolCallingQuality: 4,
+            reasoningQuality: 4,
+            speed: 2,
+            overallScore: 4,
+            license: "Apache 2.0",
+            isCompatibleWithDevice: true,
+            isRecommended: false,
+            downloadState: .notDownloaded,
+            summary: "Заметно умнее модели по умолчанию — лучше рассуждает и точнее следует инструкциям, но весит почти 2.3 ГБ и генерирует медленнее. На iPhone 15 (6 ГБ ОЗУ) занимает существенную часть памяти; лучше не держать параллельно тяжёлые приложения."
         )
     ]
 }

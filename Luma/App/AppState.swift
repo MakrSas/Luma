@@ -9,7 +9,6 @@ import Observation
 final class AppState {
     var conversations: [Conversation] = Conversation.mockList
     var activeConversationID: Conversation.ID?
-    var temporaryConversation: Conversation?
 
     var availableModels: [LocalModel]
     var selectedModelID: LocalModel.ID
@@ -38,17 +37,13 @@ final class AppState {
     }
 
     func conversation(id: UUID) -> Conversation? {
-        conversations.first(where: { $0.id == id }) ?? (temporaryConversation?.id == id ? temporaryConversation : nil)
+        conversations.first(where: { $0.id == id })
     }
 
     @discardableResult
-    func startNewConversation(temporary: Bool = false) -> UUID {
-        let conversation = Conversation.newEmpty(temporary: temporary)
-        if temporary {
-            temporaryConversation = conversation
-        } else {
-            conversations.insert(conversation, at: 0)
-        }
+    func startNewConversation() -> UUID {
+        let conversation = Conversation.newEmpty()
+        conversations.insert(conversation, at: 0)
         activeConversationID = conversation.id
         return conversation.id
     }

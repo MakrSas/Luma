@@ -37,8 +37,7 @@ struct ChatView: View {
     }
 
     private var navTitle: String {
-        if conversation?.isTemporary == true { return "Временный диалог" }
-        return conversation?.title ?? "Luma"
+        conversation?.title ?? "Новый диалог"
     }
 
     private var canSend: Bool {
@@ -57,16 +56,10 @@ struct ChatView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
-                        let id = appState.startNewConversation(temporary: false)
+                        let id = appState.startNewConversation()
                         path.append(Route.conversation(id))
                     } label: {
                         Label("Новый диалог", systemImage: "plus.bubble")
-                    }
-                    Button {
-                        let id = appState.startNewConversation(temporary: true)
-                        path.append(Route.conversation(id))
-                    } label: {
-                        Label("Временный диалог", systemImage: "timer")
                     }
                     Button {
                         path.append(Route.settingsHub)
@@ -98,6 +91,10 @@ struct ChatView: View {
                     ForEach(messages) { message in
                         messageRow(message)
                             .id(message.id)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .bottom).combined(with: .opacity),
+                                removal: .opacity
+                            ))
                     }
                     if let label = status.label {
                         StatusIndicatorView(label: label)
@@ -151,59 +148,56 @@ struct ChatView: View {
         }
     }
 
-    /// Siri-style input bar: three separate elements (not one fused capsule)
-    /// — a standalone "+" circle opening model/intelligence controls (per
-    /// DESIGN.md there is no microphone — everything that used to sit in a
-    /// chip row above the field now lives behind "+"), a prominent pill text
-    /// field, and a standalone round send/stop button.
+    /// Three independent native elements — not merged under one shared
+    /// backdrop — a standalone "+" glass button opening model/intelligence
+    /// controls (per DESIGN.md there is no microphone — everything that
+    /// used to sit in a chip row above the field now lives behind "+"), a
+    /// glass text field, and a standalone round send/stop button using the
+    /// real system `.glass`/`.glassProminent` button styles.
     private var inputBar: some View {
-        LumaGlass.container(spacing: LumaSpacing.xs) {
-            HStack(alignment: .center, spacing: LumaSpacing.xs) {
-                Menu {
-                    Button {
-                        showModelPicker = true
-                    } label: {
-                        Label(appState.selectedModel().name, systemImage: "cube.fill")
-                    }
-                    Button {
-                        showIntelligencePicker = true
-                    } label: {
-                        Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
-                    }
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(LumaColor.textPrimary)
-                        .frame(width: 44, height: 44)
-                        .glassSurface(cornerRadius: LumaRadius.pill)
-                }
-
-                TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
-                    .font(LumaType.body)
-                    .lineLimit(1...5)
-                    .focused($inputFocused)
-                    .padding(.horizontal, LumaSpacing.md)
-                    .padding(.vertical, LumaSpacing.sm)
-                    .glassSurface(cornerRadius: LumaRadius.pill)
-
+        HStack(alignment: .center, spacing: LumaSpacing.xs) {
+            Menu {
                 Button {
-                    if isGenerating {
-                        stopGeneration()
-                    } else {
-                        sendMessage()
-                    }
+                    showModelPicker = true
                 } label: {
-                    Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(LumaColor.onAccent)
-                        .frame(width: 44, height: 44)
-                        .background(
-                            isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3),
-                            in: Circle()
-                        )
+                    Label(appState.selectedModel().name, systemImage: "cube.fill")
                 }
-                .disabled(!isGenerating && !canSend)
+                Button {
+                    showIntelligencePicker = true
+                } label: {
+                    Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .medium))
+                    .frame(width: 44, height: 44)
             }
+            .buttonBorderShape(.circle)
+            .lumaGlassButtonStyle()
+
+            TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
+                .font(LumaType.body)
+                .lineLimit(1...5)
+                .focused($inputFocused)
+                .padding(.horizontal, LumaSpacing.md)
+                .padding(.vertical, LumaSpacing.sm)
+                .glassSurface(cornerRadius: LumaRadius.pill)
+
+            Button {
+                if isGenerating {
+                    stopGeneration()
+                } else {
+                    sendMessage()
+                }
+            } label: {
+                Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(LumaColor.onAccent)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonBorderShape(.circle)
+            .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
+            .disabled(!isGenerating && !canSend)
         }
         .padding(.horizontal, LumaSpacing.md)
         .padding(.top, LumaSpacing.xs)
@@ -219,7 +213,9 @@ struct ChatView: View {
         guard !text.isEmpty else { return }
         draft = ""
         inputFocused = false
-        messages.append(ChatMessage(id: UUID(), role: .user, text: text, createdAt: .now))
+        withAnimation(.spring(duration: 0.35)) {
+            messages.append(ChatMessage(id: UUID(), role: .user, text: text, createdAt: .now))
+        }
         generateReply(for: text)
     }
 
@@ -265,10 +261,24 @@ struct ChatView: View {
             .filter { $0.role == .user || $0.role == .assistant }
             .suffix(12)
             .map { (role: $0.role == .user ? InferenceRole.user : .assistant, text: $0.text) }
+
+        var tools: [any LLMTool] = DeviceTools.all
+        let webAllowed = appState.permissions.first(where: { $0.toolName == SearchWebTool.toolName })?.state != .denied
+        if webAllowed {
+            tools.append(SearchWebTool())
+            tools.append(FetchURLTool())
+        }
+        let webClause = webAllowed
+            ? "У тебя также есть доступ в интернет — используй search_web, чтобы найти актуальную информацию, и fetch_url, чтобы открыть конкретную страницу, если это уместно для ответа."
+            : "У тебя нет доступа в интернет — если вопрос требует свежих данных из сети, честно скажи, что не можешь это проверить, и не придумывай ответ."
+
         let request = InferenceRequest(
             systemPrompt: """
             Ты — полезный локальный ассистент на iPhone. Отвечай кратко и по существу, на русском языке (если пользователь не пишет на другом). Никогда не представляйся названием приложения и не говори «я Luma».
-            У тебя есть инструменты для проверки заряда батареи, свободного места и версии iOS — используй их, если вопрос об этом. Для всего остального, чего не можешь проверить (интернет, время, файлы пользователя), честно скажи, что не можешь это проверить, и не придумывай ответ.
+            У тебя есть инструменты для проверки заряда батареи, свободного места и версии iOS — используй их, если вопрос об этом.
+            \(webClause)
+            Когда сообщаешь числа, полученные от инструмента (проценты, гигабайты и т.п.), указывай их ТОЧНО как получено — никогда не округляй и не изменяй их.
+            Для всего остального, что не можешь проверить ни одним инструментом (файлы пользователя, время и т.п.), честно скажи, что не можешь это проверить, и не придумывай ответ.
             """,
             messages: Array(history)
         )
@@ -276,10 +286,12 @@ struct ChatView: View {
         Task {
             do {
                 let modelURL = ModelDownloader.localDirectory(for: appState.selectedModel())
-                try await appState.inferenceEngine.load(modelFileURL: modelURL, tools: DeviceTools.all)
+                try await appState.inferenceEngine.load(modelFileURL: modelURL, tools: tools)
                 await MainActor.run {
                     status = .generating
-                    messages.append(ChatMessage(id: replyID, role: .assistant, text: "", createdAt: .now, isStreaming: true))
+                    withAnimation(.spring(duration: 0.35)) {
+                        messages.append(ChatMessage(id: replyID, role: .assistant, text: "", createdAt: .now, isStreaming: true))
+                    }
                 }
                 var calledToolNames: [String] = []
                 for try await event in appState.inferenceEngine.generate(request) {
@@ -303,7 +315,11 @@ struct ChatView: View {
                     }
                     if !calledToolNames.isEmpty {
                         let widgets = DeviceToolWidgets.build(for: calledToolNames)
-                        messages.append(ChatMessage(id: UUID(), role: .widgets, text: "", createdAt: .now, widgets: widgets))
+                        if !widgets.isEmpty {
+                            withAnimation(.spring(duration: 0.35)) {
+                                messages.append(ChatMessage(id: UUID(), role: .widgets, text: "", createdAt: .now, widgets: widgets))
+                            }
+                        }
                     }
                     isGenerating = false
                     status = .idle
@@ -347,6 +363,8 @@ private enum DeviceToolWidgets {
         case GetBatteryStatusTool.toolName: return "заряд батареи"
         case GetStorageStatusTool.toolName: return "свободное место"
         case GetSystemVersionTool.toolName: return "версию iOS"
+        case SearchWebTool.toolName: return "ищет в интернете"
+        case FetchURLTool.toolName: return "открывает страницу"
         default: return toolName
         }
     }

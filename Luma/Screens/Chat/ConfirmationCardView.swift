@@ -21,9 +21,6 @@ struct ConfirmationCardView: View {
                     .font(LumaType.headline)
                     .foregroundStyle(LumaColor.textPrimary)
                 Spacer()
-                Text(riskLevel.label)
-                    .font(LumaType.caption)
-                    .foregroundStyle(LumaColor.risk(riskLevel))
             }
 
             VStack(alignment: .leading, spacing: LumaSpacing.xxs) {
@@ -36,8 +33,13 @@ struct ConfirmationCardView: View {
             HStack(spacing: LumaSpacing.sm) {
                 Button("Отменить", role: .cancel, action: onCancel)
                     .lumaGlassButtonStyle()
-                Button("Подтвердить", action: onConfirm)
-                    .lumaGlassProminentButtonStyle()
+                Button {
+                    onConfirm()
+                } label: {
+                    Text("Подтвердить")
+                        .foregroundStyle(LumaColor.onAccent)
+                }
+                .lumaGlassProminentButtonStyle()
             }
             .frame(maxWidth: .infinity)
         }

@@ -24,9 +24,9 @@ struct PermissionsCenterView: View {
                                     .foregroundStyle(LumaColor.textSecondary)
                             }
                             Spacer()
-                            Text(permission.riskLevel.label)
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(LumaColor.risk(permission.riskLevel))
+                            Circle()
+                                .fill(LumaColor.risk(permission.riskLevel))
+                                .frame(width: 8, height: 8)
                         }
 
                         Picker("Уровень доступа", selection: $permission.state) {

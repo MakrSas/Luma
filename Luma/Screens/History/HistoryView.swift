@@ -31,34 +31,37 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            LumaColor.canvas.ignoresSafeArea()
-
-            ScrollView {
-                MasonryLayout(spacing: LumaSpacing.sm) {
-                    ForEach(filtered) { conversation in
-                        card(for: conversation)
-                    }
-                }
-                .padding(.horizontal, LumaSpacing.md)
-                .padding(.top, LumaSpacing.xxl)
-                .padding(.bottom, 104)
-
-                if filtered.isEmpty {
-                    Text("Ничего не найдено")
-                        .font(LumaType.subheadline)
-                        .foregroundStyle(LumaColor.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, LumaSpacing.xl)
+        ScrollView {
+            MasonryLayout(spacing: LumaSpacing.sm) {
+                ForEach(filtered) { conversation in
+                    card(for: conversation)
                 }
             }
+            .padding(.horizontal, LumaSpacing.md)
+            .padding(.top, LumaSpacing.sm)
 
-            bottomControls
+            if filtered.isEmpty {
+                Text("Ничего не найдено")
+                    .font(LumaType.subheadline)
+                    .foregroundStyle(LumaColor.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, LumaSpacing.xl)
+            }
         }
-        .overlay(alignment: .topTrailing) {
-            optionsButton
-                .padding(.top, LumaSpacing.xs)
-                .padding(.trailing, LumaSpacing.md)
+        .background(LumaColor.canvas.ignoresSafeArea())
+        .safeAreaInset(edge: .top) {
+            HStack {
+                Spacer()
+                optionsButton
+            }
+            .padding(.horizontal, LumaSpacing.md)
+            .padding(.top, LumaSpacing.xs)
+            .padding(.bottom, LumaSpacing.xs)
+        }
+        .safeAreaInset(edge: .bottom) {
+            bottomControls
+                .padding(.horizontal, LumaSpacing.md)
+                .padding(.bottom, LumaSpacing.sm)
         }
         .toolbar(.hidden, for: .navigationBar)
         .alert("Переименовать диалог", isPresented: Binding(get: { renamingID != nil }, set: { if !$0 { renamingID = nil } })) {
@@ -103,36 +106,33 @@ struct HistoryView: View {
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(LumaColor.textPrimary)
                 .frame(width: 48, height: 48)
-                .glassSurface(cornerRadius: LumaRadius.pill)
         }
+        .buttonBorderShape(.circle)
+        .lumaGlassButtonStyle()
     }
 
     /// Per Apple's iOS 26 Liquid Glass guidance, search lives permanently in
-    /// the bottom bar (like a tab bar's search tab), not behind an icon that
-    /// slides a field down from the top. Tapping the compact pill expands it
-    /// in place — the compose button steps aside rather than search
+    /// the bottom bar. Collapsed it's a plain circular icon button (matching
+    /// `composeButton`'s size/shape); tapping it expands it in place to a
+    /// full-width field — the compose button steps aside rather than search
     /// appearing somewhere else on screen.
     private var bottomControls: some View {
-        LumaGlass.container(spacing: LumaSpacing.xs) {
-            HStack(spacing: LumaSpacing.xs) {
-                searchField
-                if !isSearching {
-                    Spacer(minLength: 0)
-                    composeButton
-                }
+        HStack(spacing: LumaSpacing.xs) {
+            searchControl
+            if !isSearching {
+                Spacer(minLength: 0)
+                composeButton
             }
         }
-        .padding(.horizontal, LumaSpacing.md)
-        .padding(.bottom, LumaSpacing.sm)
     }
 
-    private var searchField: some View {
-        HStack(spacing: LumaSpacing.xs) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(LumaColor.textSecondary)
-            if isSearching {
+    @ViewBuilder
+    private var searchControl: some View {
+        if isSearching {
+            HStack(spacing: LumaSpacing.xs) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(LumaColor.textSecondary)
                 TextField("Поиск диалогов", text: $query)
                     .font(LumaType.body)
                     .focused($searchFocused)
@@ -146,48 +146,40 @@ struct HistoryView: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(LumaColor.textTertiary)
                 }
-            } else {
-                Text("Поиск")
-                    .font(LumaType.body)
-                    .foregroundStyle(LumaColor.textSecondary)
-                Spacer(minLength: 0)
+                .buttonStyle(.plain)
             }
-        }
-        .padding(.horizontal, LumaSpacing.md)
-        .frame(height: 56)
-        .frame(maxWidth: isSearching ? .infinity : 140, alignment: .leading)
-        .glassSurface(cornerRadius: LumaRadius.pill)
-        .contentShape(RoundedRectangle(cornerRadius: LumaRadius.pill, style: .continuous))
-        .onTapGesture {
-            guard !isSearching else { return }
-            withAnimation(.easeOut(duration: 0.2)) {
-                isSearching = true
-                searchFocused = true
+            .padding(.horizontal, LumaSpacing.md)
+            .frame(height: 56)
+            .frame(maxWidth: .infinity)
+            .glassSurface(cornerRadius: LumaRadius.pill)
+        } else {
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isSearching = true
+                    searchFocused = true
+                }
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 56, height: 56)
             }
+            .buttonBorderShape(.circle)
+            .lumaGlassButtonStyle()
         }
     }
 
     private var composeButton: some View {
-        Menu {
-            Button {
-                let id = appState.startNewConversation(temporary: false)
-                path.append(Route.conversation(id))
-            } label: {
-                Label("Новый диалог", systemImage: "plus.bubble")
-            }
-            Button {
-                let id = appState.startNewConversation(temporary: true)
-                path.append(Route.conversation(id))
-            } label: {
-                Label("Временный диалог", systemImage: "timer")
-            }
+        Button {
+            let id = appState.startNewConversation()
+            path.append(Route.conversation(id))
         } label: {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(LumaColor.onAccent)
                 .frame(width: 56, height: 56)
-                .background(LumaColor.accent, in: Circle())
         }
+        .buttonBorderShape(.circle)
+        .lumaGlassProminentButtonStyle()
     }
 
     private func card(for conversation: Conversation) -> some View {
@@ -249,18 +241,12 @@ private struct HistoryCard: View {
     var conversation: Conversation
 
     var body: some View {
-        Group {
-            if let icon = conversation.heroImageName {
-                imageCard(icon: icon)
-            } else {
-                textCard
-            }
-        }
-        .background(LumaColor.canvasElevated, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous)
-                .strokeBorder(LumaColor.separator.opacity(0.6), lineWidth: 0.5)
-        )
+        textCard
+            .background(LumaColor.canvasElevated, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous)
+                    .strokeBorder(LumaColor.separator.opacity(0.6), lineWidth: 0.5)
+            )
     }
 
     private var metaRow: some View {
@@ -294,45 +280,5 @@ private struct HistoryCard: View {
         }
         .padding(LumaSpacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func imageCard(icon: String) -> some View {
-        ZStack(alignment: .bottom) {
-            LinearGradient(
-                colors: [LumaColor.textPrimary.opacity(0.35), LumaColor.textPrimary.opacity(0.55)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .overlay(
-                Image(systemName: icon)
-                    .font(.system(size: 34))
-                    .foregroundStyle(.white.opacity(0.85))
-            )
-
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.75)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-
-            VStack {
-                HStack {
-                    metaRow
-                        .foregroundStyle(.white.opacity(0.9))
-                    Spacer()
-                }
-                Spacer()
-                HStack {
-                    Text(conversation.title)
-                        .font(LumaType.headline)
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                    Spacer()
-                }
-            }
-            .padding(LumaSpacing.sm)
-        }
-        .frame(height: conversation.isPinned ? 220 : 170)
-        .clipShape(RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
     }
 }

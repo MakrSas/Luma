@@ -17,16 +17,9 @@ struct ToolActionCardView: View {
                 Text(action.detail)
                     .font(LumaType.footnote)
                     .foregroundStyle(LumaColor.textSecondary)
-                HStack(spacing: LumaSpacing.xxs) {
-                    Text(action.toolName)
-                        .font(LumaType.monospaceCaption)
-                        .foregroundStyle(LumaColor.textTertiary)
-                    Text("·")
-                        .foregroundStyle(LumaColor.textTertiary)
-                    Text(action.riskLevel.label)
-                        .font(LumaType.caption)
-                        .foregroundStyle(LumaColor.risk(action.riskLevel))
-                }
+                Text(action.toolName)
+                    .font(LumaType.monospaceCaption)
+                    .foregroundStyle(LumaColor.textTertiary)
             }
             Spacer(minLength: 0)
         }

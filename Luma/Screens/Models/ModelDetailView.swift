@@ -126,6 +126,7 @@ struct ModelDetailView: View {
                 path.append(Route.modelDownload(model!.id))
             } label: {
                 Label("Скачать · \(String(format: "%.1f", model!.downloadSizeGB)) ГБ", systemImage: "arrow.down.circle.fill")
+                    .foregroundStyle(LumaColor.onAccent)
                     .frame(maxWidth: .infinity)
             }
             .lumaGlassProminentButtonStyle()

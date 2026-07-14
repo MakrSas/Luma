@@ -169,6 +169,20 @@ object literals» (введён тип `ObjectKey`), выпущенного ка
 будет добавить `LlamaInferenceEngine` как альтернативный бэкенд для
 GGUF-моделей, не трогая протокол `LocalInferenceEngine`.
 
+**Доступ в интернет** (`Luma/Inference/WebTools.swift`,
+`Luma/Services/WebSearchService.swift`) — те же принципы, что и у
+`DeviceTools`: настоящие `LLMTool`, модель сама решает, вызывать ли их.
+`SearchWebTool`/`search_web` бьёт в публичный keyless `opensearch` эндпоинт
+Wikipedia (никакого API-ключа не требуется); `FetchURLTool`/`fetch_url`
+загружает конкретную страницу и грубо снимает HTML-теги. `ChatView` включает
+оба инструмента в список, передаваемый `load(modelFileURL:tools:)`, только
+если `ToolPermission` с `toolName == "search_web"` не в состоянии `.denied`
+(центр разрешений, `Luma/Models/ToolPermission.swift`) — по умолчанию оба
+в состоянии `.ask`. Честное ограничение: `.ask` пока не показывает отдельного
+подтверждения на каждый вызов (это `ConfirmationCoordinator` из плана Этапа
+3), только общий переключатель «разрешено/спрашивать/запрещено» на уровне
+инструмента целиком — см. `KNOWN_ISSUES.md`.
+
 ## Тесты
 
 `LumaTests` — XCTest, таргетируется на `Luma` через `@testable import Luma`.

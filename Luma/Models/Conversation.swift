@@ -8,11 +8,8 @@ struct Conversation: Identifiable, Hashable {
     var createdAt: Date
     var updatedAt: Date
     var isPinned: Bool
-    var isTemporary: Bool
-    var heroImageName: String?
-    var accentTag: String?
 
-    static func newEmpty(temporary: Bool) -> Conversation {
+    static func newEmpty() -> Conversation {
         Conversation(
             id: UUID(),
             title: "Новый диалог",
@@ -20,10 +17,7 @@ struct Conversation: Identifiable, Hashable {
             messages: [],
             createdAt: .now,
             updatedAt: .now,
-            isPinned: false,
-            isTemporary: temporary,
-            heroImageName: nil,
-            accentTag: nil
+            isPinned: false
         )
     }
 }
@@ -74,10 +68,7 @@ extension Conversation {
             messages: ChatMessage.mockThreadTravel,
             createdAt: .now.addingTimeInterval(-86_400 * 2),
             updatedAt: .now.addingTimeInterval(-3_600),
-            isPinned: true,
-            isTemporary: false,
-            heroImageName: "photo.fill",
-            accentTag: "Путешествия"
+            isPinned: true
         ),
         Conversation(
             id: UUID(),
@@ -86,10 +77,7 @@ extension Conversation {
             messages: ChatMessage.mockThreadReminders,
             createdAt: .now.addingTimeInterval(-86_400),
             updatedAt: .now.addingTimeInterval(-7_200),
-            isPinned: false,
-            isTemporary: false,
-            heroImageName: nil,
-            accentTag: "Задачи"
+            isPinned: false
         ),
         Conversation(
             id: UUID(),
@@ -98,10 +86,7 @@ extension Conversation {
             messages: ChatMessage.mockThreadCode,
             createdAt: .now.addingTimeInterval(-86_400 * 5),
             updatedAt: .now.addingTimeInterval(-86_400 * 4),
-            isPinned: false,
-            isTemporary: false,
-            heroImageName: "chevron.left.forwardslash.chevron.right",
-            accentTag: "Код"
+            isPinned: false
         ),
         Conversation(
             id: UUID(),
@@ -110,10 +95,7 @@ extension Conversation {
             messages: [],
             createdAt: .now.addingTimeInterval(-86_400 * 9),
             updatedAt: .now.addingTimeInterval(-86_400 * 8),
-            isPinned: false,
-            isTemporary: false,
-            heroImageName: nil,
-            accentTag: nil
+            isPinned: false
         ),
         Conversation(
             id: UUID(),
@@ -122,10 +104,7 @@ extension Conversation {
             messages: [],
             createdAt: .now.addingTimeInterval(-86_400 * 14),
             updatedAt: .now.addingTimeInterval(-86_400 * 13),
-            isPinned: false,
-            isTemporary: false,
-            heroImageName: "chart.pie.fill",
-            accentTag: "Финансы"
+            isPinned: false
         )
     ]
 }
