@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// Layout modeled directly on Apple's own Settings app (grouped rounded
+/// sections, square icon badges, trailing chevron) — per CLAUDE.md/DESIGN.md
+/// the icon badges stay one neutral monochrome tone rather than Apple's own
+/// per-row accent colors (Wi-Fi blue, Cellular green, etc).
 struct SettingsHubView: View {
     @Binding var path: NavigationPath
 
@@ -20,6 +24,7 @@ struct SettingsHubView: View {
                 row(icon: "doc.text.fill", title: "Лицензии моделей", route: .licenses)
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("Настройки")
     }
 
@@ -27,9 +32,26 @@ struct SettingsHubView: View {
         Button {
             path.append(route)
         } label: {
-            Label(title, systemImage: icon)
-                .foregroundStyle(LumaColor.textPrimary)
+            HStack(spacing: LumaSpacing.sm) {
+                iconBadge(icon)
+                Text(title)
+                    .font(LumaType.body)
+                    .foregroundStyle(LumaColor.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(LumaColor.textTertiary)
+            }
         }
+        .padding(.vertical, LumaSpacing.xxs)
+    }
+
+    private func iconBadge(_ systemImage: String) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(LumaColor.onAccent)
+            .frame(width: 29, height: 29)
+            .background(LumaColor.accent, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 }
 
