@@ -49,7 +49,7 @@ struct ChatView: View {
             messageScroll
             inputBar
         }
-        .background(LumaColor.canvas.ignoresSafeArea())
+        .background(Color.black.ignoresSafeArea())
         .navigationTitle(navTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

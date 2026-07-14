@@ -39,8 +39,8 @@ targets:
     sources:
       - path: Luma
         excludes:
-          - "Resources/AppIcon.icon/**"
-      - path: Luma/Resources/AppIcon.icon
+          - "Resources/**"
+      - path: Luma/Resources
         type: syncedFolder
     info:
       path: Luma/Resources/Info.plist
