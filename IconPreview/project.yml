@@ -14,10 +14,12 @@ targets:
           - "Resources/**"
       - path: IconPreviewApp/Resources
         type: syncedFolder
+      - path: IconPreviewApp/AlternateIcons.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.makrsas.iconpreview
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Metal AppIcon-MetalDither AppIcon-Dither AppIcon-DitherGreen"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_CFBundleDisplayName: IconPreview
