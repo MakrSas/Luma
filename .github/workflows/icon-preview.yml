@@ -90,10 +90,11 @@ jobs:
         timeout-minutes: 5
         run: |
           set -eo pipefail
-          DEVICE_ID=$(xcrun simctl list devices available | grep -E "iPhone 17 \(" | head -1 | grep -oE '[0-9A-F-]{36}')
+          RUNTIME_ID=$(xcrun simctl list runtimes available -j | python3 -c "import json,sys; rts=[r for r in json.load(sys.stdin)['runtimes'] if 'iOS' in r['name']]; print(rts[-1]['identifier'])")
+          DEVICETYPE_ID=$(xcrun simctl list devicetypes -j | python3 -c "import json,sys; dts=[d for d in json.load(sys.stdin)['devicetypes'] if d['name']=='iPhone 17']; print(dts[0]['identifier'])")
+          echo "Creating fresh simulator: runtime=$RUNTIME_ID devicetype=$DEVICETYPE_ID"
+          DEVICE_ID=$(xcrun simctl create IconPreviewFresh "$DEVICETYPE_ID" "$RUNTIME_ID")
           echo "Using simulator: $DEVICE_ID"
-          xcrun simctl shutdown "$DEVICE_ID" 2>/dev/null || true
-          xcrun simctl erase "$DEVICE_ID"
           xcrun simctl bootstatus "$DEVICE_ID" -b
           APP_PATH=$(find build/Build/Products -maxdepth 2 -name "IconPreviewApp.app" | head -1)
           echo "App: $APP_PATH"
