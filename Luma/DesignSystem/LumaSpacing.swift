@@ -13,6 +13,9 @@ enum LumaSpacing {
 enum LumaRadius {
     static let small: CGFloat = 12
     static let medium: CGFloat = 20
+    /// History-card radius measured against the Siri reference renders
+    /// (cards ~170pt wide with a ~24pt continuous corner).
+    static let card: CGFloat = 24
     static let large: CGFloat = 28
     static let pill: CGFloat = 999
 }

@@ -49,7 +49,7 @@ struct ChatView: View {
             messageScroll
             inputBar
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(LumaColor.canvas.ignoresSafeArea())
         .navigationTitle(navTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -155,51 +155,53 @@ struct ChatView: View {
     /// glass text field, and a standalone round send/stop button using the
     /// real system `.glass`/`.glassProminent` button styles.
     private var inputBar: some View {
-        HStack(alignment: .center, spacing: LumaSpacing.xs) {
-            Menu {
-                Button {
-                    showModelPicker = true
+        LumaGlass.container {
+            HStack(alignment: .center, spacing: LumaSpacing.xs) {
+                Menu {
+                    Button {
+                        showModelPicker = true
+                    } label: {
+                        Label(appState.selectedModel().name, systemImage: "cube.fill")
+                    }
+                    Button {
+                        showIntelligencePicker = true
+                    } label: {
+                        Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
+                    }
                 } label: {
-                    Label(appState.selectedModel().name, systemImage: "cube.fill")
+                    Image(systemName: "plus")
                 }
+                .buttonBorderShape(.circle)
+                .lumaGlassButtonStyle()
+                .frame(width: 44, height: 44)
+
+                TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
+                    .font(LumaType.body)
+                    .lineLimit(1...5)
+                    .focused($inputFocused)
+                    .padding(.horizontal, LumaSpacing.md)
+                    .padding(.vertical, LumaSpacing.sm)
+                    .glassSurface(cornerRadius: LumaRadius.pill)
+
                 Button {
-                    showIntelligencePicker = true
+                    if isGenerating {
+                        stopGeneration()
+                    } else {
+                        sendMessage()
+                    }
                 } label: {
-                    Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
+                    Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
+                        .foregroundStyle(LumaColor.onAccent)
                 }
-            } label: {
-                Image(systemName: "plus")
+                .buttonBorderShape(.circle)
+                .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
+                .frame(width: 44, height: 44)
+                .disabled(!isGenerating && !canSend)
             }
-            .buttonBorderShape(.circle)
-            .lumaGlassButtonStyle()
-            .frame(width: 44, height: 44)
-
-            TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
-                .font(LumaType.body)
-                .lineLimit(1...5)
-                .focused($inputFocused)
-                .padding(.horizontal, LumaSpacing.md)
-                .padding(.vertical, LumaSpacing.sm)
-                .glassSurface(cornerRadius: LumaRadius.pill)
-
-            Button {
-                if isGenerating {
-                    stopGeneration()
-                } else {
-                    sendMessage()
-                }
-            } label: {
-                Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
-                    .foregroundStyle(LumaColor.onAccent)
-            }
-            .buttonBorderShape(.circle)
-            .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
-            .frame(width: 44, height: 44)
-            .disabled(!isGenerating && !canSend)
+            .padding(.horizontal, LumaSpacing.md)
+            .padding(.top, LumaSpacing.xs)
+            .padding(.bottom, LumaSpacing.xs)
         }
-        .padding(.horizontal, LumaSpacing.md)
-        .padding(.top, LumaSpacing.xs)
-        .padding(.bottom, LumaSpacing.xs)
     }
 
     private func loadMessages() {

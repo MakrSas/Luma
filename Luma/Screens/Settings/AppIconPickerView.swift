@@ -57,10 +57,16 @@ struct AppIconPickerView: View {
         .background(LumaColor.canvas.ignoresSafeArea())
         .navigationTitle("Значок приложения")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Не удалось сменить значок", isPresented: .constant(errorMessage != nil), presenting: errorMessage) { _ in
-            Button("ОК") { errorMessage = nil }
-        } message: { message in
-            Text(message)
+        .alert(
+            "Не удалось сменить значок",
+            isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )
+        ) {
+            Button("ОК", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
         }
     }
 

@@ -1,5 +1,8 @@
 import SwiftUI
 
+/// The Siri reference renders the user's message as a neutral
+/// received-gray bubble (dark gray on black, light gray on white) with
+/// primary-label text — not an accent-filled "sent" bubble.
 struct UserBubble: View {
     var text: String
 
@@ -8,10 +11,10 @@ struct UserBubble: View {
             Spacer(minLength: 40)
             Text(text)
                 .font(LumaType.body)
-                .foregroundStyle(LumaColor.onAccent)
+                .foregroundStyle(LumaColor.textPrimary)
                 .padding(.horizontal, LumaSpacing.sm)
                 .padding(.vertical, LumaSpacing.xs)
-                .background(LumaColor.accent, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
+                .background(LumaColor.bubble, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
         }
     }
 }

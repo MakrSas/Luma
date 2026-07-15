@@ -117,11 +117,13 @@ struct HistoryView: View {
     /// full-width field — the compose button steps aside rather than search
     /// appearing somewhere else on screen.
     private var bottomControls: some View {
-        HStack(spacing: LumaSpacing.xs) {
-            searchControl
-            if !isSearching {
-                Spacer(minLength: 0)
-                composeButton
+        LumaGlass.container {
+            HStack(spacing: LumaSpacing.xs) {
+                searchControl
+                if !isSearching {
+                    Spacer(minLength: 0)
+                    composeButton
+                }
             }
         }
     }
@@ -237,13 +239,13 @@ private func metaLabel(for date: Date) -> String {
 private struct HistoryCard: View {
     var conversation: Conversation
 
+    /// Borderless card per the Siri reference: plain elevated fill with a
+    /// soft ambient shadow (reads in light mode, disappears on the black
+    /// dark canvas where fill contrast alone separates the card).
     var body: some View {
         textCard
-            .background(LumaColor.canvasElevated, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous)
-                    .strokeBorder(LumaColor.separator.opacity(0.6), lineWidth: 0.5)
-            )
+            .background(LumaColor.canvasElevated, in: RoundedRectangle(cornerRadius: LumaRadius.card, style: .continuous))
+            .shadow(color: Color.black.opacity(0.06), radius: 10, y: 4)
     }
 
     private var metaRow: some View {
@@ -263,9 +265,9 @@ private struct HistoryCard: View {
                 .foregroundStyle(LumaColor.textTertiary)
 
             Text(conversation.title)
-                .font(LumaType.headline)
+                .font(Font.system(.title3, design: .default, weight: .semibold))
                 .foregroundStyle(LumaColor.textPrimary)
-                .lineLimit(2)
+                .lineLimit(3)
                 .padding(.top, 2)
 
             if !conversation.summary.isEmpty {
@@ -275,7 +277,7 @@ private struct HistoryCard: View {
                     .lineLimit(4)
             }
         }
-        .padding(LumaSpacing.sm)
+        .padding(LumaSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

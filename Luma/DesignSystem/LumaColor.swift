@@ -7,6 +7,10 @@ import SwiftUI
 /// information in confirmations and stay legible functional colors, the
 /// same way the Siri reference screenshots keep a green battery ring in an
 /// otherwise monochrome UI.
+///
+/// The grayscale is pure-neutral (r == g == b), matching the iOS 27 Siri
+/// app references exactly — the earlier warm-tinted neutrals are gone. In
+/// dark mode the canvas is true black, like the Siri conversation screen.
 enum LumaColor {
     static func dynamic(light: UIColor, dark: UIColor) -> Color {
         Color(UIColor { trait in
@@ -27,33 +31,44 @@ enum LumaColor {
         dark: UIColor(red: 0.06, green: 0.06, blue: 0.06, alpha: 1)
     )
 
+    /// True black in dark mode (the Siri conversation/history background);
+    /// soft neutral gray in light so white cards read against it.
     static let canvas = dynamic(
-        light: UIColor(red: 0.97, green: 0.965, blue: 0.955, alpha: 1),
-        dark: UIColor(red: 0.06, green: 0.06, blue: 0.065, alpha: 1)
+        light: UIColor(red: 0.949, green: 0.949, blue: 0.945, alpha: 1),
+        dark: UIColor.black
     )
 
+    /// Card fill: pure white on the light canvas, #1C1C1E on black —
+    /// exactly the history-card pairing in the Siri references.
     static let canvasElevated = dynamic(
         light: UIColor.white,
-        dark: UIColor(red: 0.11, green: 0.11, blue: 0.115, alpha: 1)
+        dark: UIColor(red: 0.11, green: 0.11, blue: 0.118, alpha: 1)
+    )
+
+    /// Received-message gray for the user's chat bubble (the reference
+    /// renders it as a neutral iMessage-style bubble, not an accent fill).
+    static let bubble = dynamic(
+        light: UIColor(red: 0.914, green: 0.914, blue: 0.922, alpha: 1),
+        dark: UIColor(red: 0.173, green: 0.173, blue: 0.180, alpha: 1)
     )
 
     static let textPrimary = dynamic(
-        light: UIColor(red: 0.11, green: 0.10, blue: 0.09, alpha: 1),
-        dark: UIColor(red: 0.97, green: 0.96, blue: 0.94, alpha: 1)
+        light: UIColor(red: 0.05, green: 0.05, blue: 0.05, alpha: 1),
+        dark: UIColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1)
     )
 
     static let textSecondary = dynamic(
-        light: UIColor(red: 0.42, green: 0.40, blue: 0.37, alpha: 1),
-        dark: UIColor(red: 0.68, green: 0.66, blue: 0.63, alpha: 1)
+        light: UIColor(red: 0.42, green: 0.42, blue: 0.42, alpha: 1),
+        dark: UIColor(red: 0.64, green: 0.64, blue: 0.64, alpha: 1)
     )
 
     static let textTertiary = dynamic(
-        light: UIColor(red: 0.60, green: 0.58, blue: 0.55, alpha: 1),
-        dark: UIColor(red: 0.48, green: 0.47, blue: 0.45, alpha: 1)
+        light: UIColor(red: 0.58, green: 0.58, blue: 0.58, alpha: 1),
+        dark: UIColor(red: 0.46, green: 0.46, blue: 0.46, alpha: 1)
     )
 
     static let separator = dynamic(
-        light: UIColor(red: 0.85, green: 0.84, blue: 0.81, alpha: 1),
+        light: UIColor(red: 0.84, green: 0.84, blue: 0.84, alpha: 1),
         dark: UIColor(red: 0.22, green: 0.22, blue: 0.22, alpha: 1)
     )
 
