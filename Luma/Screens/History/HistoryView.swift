@@ -105,10 +105,11 @@ struct HistoryView: View {
             }
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 17, weight: .medium))
         }
         .buttonBorderShape(.circle)
         .lumaGlassButtonStyle()
-        .frame(width: 44, height: 44)
+        .controlSize(.large)
     }
 
     /// Per Apple's iOS 26 Liquid Glass guidance, search lives permanently in
@@ -116,14 +117,15 @@ struct HistoryView: View {
     /// `composeButton`'s size/shape); tapping it expands it in place to a
     /// full-width field — the compose button steps aside rather than search
     /// appearing somewhere else on screen.
+    /// Not wrapped in `GlassEffectContainer` — fusing the search and
+    /// compose glass shapes produces a full-width backdrop slab (same
+    /// artifact as in the chat input bar).
     private var bottomControls: some View {
-        LumaGlass.container {
-            HStack(spacing: LumaSpacing.xs) {
-                searchControl
-                if !isSearching {
-                    Spacer(minLength: 0)
-                    composeButton
-                }
+        HStack(spacing: LumaSpacing.xs) {
+            searchControl
+            if !isSearching {
+                Spacer(minLength: 0)
+                composeButton
             }
         }
     }
@@ -161,10 +163,11 @@ struct HistoryView: View {
                 }
             } label: {
                 Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17, weight: .medium))
             }
             .buttonBorderShape(.circle)
             .lumaGlassButtonStyle()
-            .frame(width: 44, height: 44)
+            .controlSize(.large)
         }
     }
 
@@ -174,11 +177,12 @@ struct HistoryView: View {
             path.append(Route.conversation(id))
         } label: {
             Image(systemName: "square.and.pencil")
+                .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(LumaColor.onAccent)
         }
         .buttonBorderShape(.circle)
         .lumaGlassProminentButtonStyle()
-        .frame(width: 44, height: 44)
+        .controlSize(.large)
     }
 
     private func card(for conversation: Conversation) -> some View {

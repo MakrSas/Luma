@@ -148,60 +148,67 @@ struct ChatView: View {
         }
     }
 
-    /// Three independent native elements — not merged under one shared
-    /// backdrop — a standalone "+" glass button opening model/intelligence
-    /// controls (per DESIGN.md there is no microphone — everything that
-    /// used to sit in a chip row above the field now lives behind "+"), a
-    /// glass text field, and a standalone round send/stop button using the
-    /// real system `.glass`/`.glassProminent` button styles.
+    /// Three independent native elements — a standalone "+" glass button
+    /// opening model/intelligence controls (per DESIGN.md there is no
+    /// microphone), a glass text field, and a standalone round send/stop
+    /// button using the real system `.glass`/`.glassProminent` styles.
+    ///
+    /// Deliberately NOT wrapped in `GlassEffectContainer`: with the small
+    /// gaps between the three elements the container fuses their glass
+    /// shapes into one full-width slab that reads as a "backdrop strip"
+    /// under the whole bar — the exact artifact the user has flagged twice.
+    ///
+    /// `.controlSize(.large)` is what actually makes the round buttons
+    /// nav-bar sized: a `.frame()` around a glass button only pads its
+    /// layout box, the drawn circle still hugs the label.
     private var inputBar: some View {
-        LumaGlass.container {
-            HStack(alignment: .center, spacing: LumaSpacing.xs) {
-                Menu {
-                    Button {
-                        showModelPicker = true
-                    } label: {
-                        Label(appState.selectedModel().name, systemImage: "cube.fill")
-                    }
-                    Button {
-                        showIntelligencePicker = true
-                    } label: {
-                        Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
-                    }
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .buttonBorderShape(.circle)
-                .lumaGlassButtonStyle()
-                .frame(width: 44, height: 44)
-
-                TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
-                    .font(LumaType.body)
-                    .lineLimit(1...5)
-                    .focused($inputFocused)
-                    .padding(.horizontal, LumaSpacing.md)
-                    .padding(.vertical, LumaSpacing.sm)
-                    .glassSurface(cornerRadius: LumaRadius.pill)
-
+        HStack(alignment: .center, spacing: LumaSpacing.xs) {
+            Menu {
                 Button {
-                    if isGenerating {
-                        stopGeneration()
-                    } else {
-                        sendMessage()
-                    }
+                    showModelPicker = true
                 } label: {
-                    Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
-                        .foregroundStyle(LumaColor.onAccent)
+                    Label(appState.selectedModel().name, systemImage: "cube.fill")
                 }
-                .buttonBorderShape(.circle)
-                .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
-                .frame(width: 44, height: 44)
-                .disabled(!isGenerating && !canSend)
+                Button {
+                    showIntelligencePicker = true
+                } label: {
+                    Label(appState.intelligenceMode.title, systemImage: appState.intelligenceMode.systemImage)
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 19, weight: .medium))
             }
-            .padding(.horizontal, LumaSpacing.md)
-            .padding(.top, LumaSpacing.xs)
-            .padding(.bottom, LumaSpacing.xs)
+            .buttonBorderShape(.circle)
+            .lumaGlassButtonStyle()
+            .controlSize(.large)
+
+            TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
+                .font(LumaType.body)
+                .lineLimit(1...5)
+                .focused($inputFocused)
+                .padding(.horizontal, LumaSpacing.md)
+                .padding(.vertical, LumaSpacing.sm)
+                .glassSurface(cornerRadius: LumaRadius.pill)
+
+            Button {
+                if isGenerating {
+                    stopGeneration()
+                } else {
+                    sendMessage()
+                }
+            } label: {
+                Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(LumaColor.onAccent)
+            }
+            .buttonBorderShape(.circle)
+            .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
+            .controlSize(.large)
+            .disabled(!isGenerating && !canSend)
         }
+        .padding(.horizontal, LumaSpacing.md)
+        .padding(.top, LumaSpacing.xs)
+        .padding(.bottom, LumaSpacing.xs)
     }
 
     private func loadMessages() {

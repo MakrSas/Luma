@@ -29,8 +29,6 @@ struct RootView: View {
             ModelDownloadView(modelID: id)
         case .intelligenceSettings:
             IntelligenceSettingsView()
-        case .appIconPicker:
-            AppIconPickerView()
         case .permissionsCenter:
             PermissionsCenterView()
         case .memory:

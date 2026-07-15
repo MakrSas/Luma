@@ -24,7 +24,8 @@ struct ToolActionCardView: View {
             Spacer(minLength: 0)
         }
         .padding(LumaSpacing.sm)
-        .glassSurface(cornerRadius: LumaRadius.medium)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LumaColor.canvasElevated, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
     }
 
     private var statusIcon: String {

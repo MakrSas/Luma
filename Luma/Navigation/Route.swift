@@ -7,7 +7,6 @@ enum Route: Hashable {
     case modelDetail(String)
     case modelDownload(String)
     case intelligenceSettings
-    case appIconPicker
     case permissionsCenter
     case memory
     case memoryEditor(UUID?)
