@@ -35,9 +35,8 @@ struct RichAnswerCardView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(LumaSpacing.sm)
+        .padding(.vertical, LumaSpacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(LumaColor.canvasElevated, in: RoundedRectangle(cornerRadius: LumaRadius.medium, style: .continuous))
     }
 }
 

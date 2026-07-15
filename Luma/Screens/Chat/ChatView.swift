@@ -134,9 +134,9 @@ struct ChatView: View {
         case .assistant:
             AssistantBubble(text: message.text, isStreaming: message.isStreaming)
         case .toolAction:
-            if let action = message.toolAction {
-                ToolActionCardView(action: action)
-            }
+            // Tool-status cards are not rendered per user decision
+            // (2026-07-15) — the assistant's own text carries the outcome.
+            EmptyView()
         case .richCard:
             if let card = message.richCard {
                 RichAnswerCardView(card: card)
@@ -148,19 +148,13 @@ struct ChatView: View {
         }
     }
 
-    /// Three independent native elements — a standalone "+" glass button
-    /// opening model/intelligence controls (per DESIGN.md there is no
-    /// microphone), a glass text field, and a standalone round send/stop
-    /// button using the real system `.glass`/`.glassProminent` styles.
-    ///
-    /// Deliberately NOT wrapped in `GlassEffectContainer`: with the small
-    /// gaps between the three elements the container fuses their glass
-    /// shapes into one full-width slab that reads as a "backdrop strip"
-    /// under the whole bar — the exact artifact the user has flagged twice.
-    ///
-    /// `.controlSize(.large)` is what actually makes the round buttons
-    /// nav-bar sized: a `.frame()` around a glass button only pads its
-    /// layout box, the drawn circle still hugs the label.
+    /// Three independent OPAQUE elements, exactly like the iOS 27 Siri
+    /// reference (dark-gray circles and pill on black; white on light).
+    /// Deliberately no Liquid Glass here: every glass view renders its own
+    /// backdrop-sampling region, and the union of three of them showed up
+    /// as the full-width "strip" under the bar on real builds — reported
+    /// three times. Opaque `canvasElevated` fills can't produce that
+    /// artifact, and they're what the reference actually shows.
     private var inputBar: some View {
         HStack(alignment: .center, spacing: LumaSpacing.xs) {
             Menu {
@@ -177,10 +171,11 @@ struct ChatView: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(LumaColor.textPrimary)
+                    .frame(width: 44, height: 44)
+                    .background(LumaColor.canvasElevated, in: Circle())
             }
-            .buttonBorderShape(.circle)
-            .lumaGlassButtonStyle()
-            .controlSize(.large)
+            .buttonStyle(.plain)
 
             TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
                 .font(LumaType.body)
@@ -188,7 +183,7 @@ struct ChatView: View {
                 .focused($inputFocused)
                 .padding(.horizontal, LumaSpacing.md)
                 .padding(.vertical, LumaSpacing.sm)
-                .glassSurface(cornerRadius: LumaRadius.pill)
+                .background(LumaColor.canvasElevated, in: Capsule())
 
             Button {
                 if isGenerating {
@@ -199,11 +194,11 @@ struct ChatView: View {
             } label: {
                 Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
                     .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(LumaColor.onAccent)
+                    .foregroundStyle(isGenerating || canSend ? LumaColor.onAccent : LumaColor.textTertiary)
+                    .frame(width: 44, height: 44)
+                    .background(isGenerating || canSend ? AnyShapeStyle(LumaColor.accent) : AnyShapeStyle(LumaColor.canvasElevated), in: Circle())
             }
-            .buttonBorderShape(.circle)
-            .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
-            .controlSize(.large)
+            .buttonStyle(.plain)
             .disabled(!isGenerating && !canSend)
         }
         .padding(.horizontal, LumaSpacing.md)
@@ -212,7 +207,7 @@ struct ChatView: View {
     }
 
     private func loadMessages() {
-        messages = conversation?.messages ?? []
+        messages = (conversation?.messages ?? []).filter { $0.role != .toolAction }
     }
 
     private func sendMessage() {

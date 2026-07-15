@@ -65,6 +65,7 @@ struct ModelDownloadView: View {
                     .padding(.vertical, LumaSpacing.xxs)
             }
             .lumaGlassButtonStyle()
+            .controlSize(.large)
             .padding(.bottom, LumaSpacing.sm)
         }
         .padding(.horizontal, LumaSpacing.md)

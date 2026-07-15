@@ -118,6 +118,8 @@ struct ModelDetailView: View {
         }
     }
 
+    /// `.controlSize(.large)` gives these the standard tall (~50pt) filled
+    /// button height — the default control size renders a thin strip.
     @ViewBuilder
     private var actionButton: some View {
         switch model!.downloadState {
@@ -126,10 +128,13 @@ struct ModelDetailView: View {
                 path.append(Route.modelDownload(model!.id))
             } label: {
                 Label("Скачать · \(String(format: "%.1f", model!.downloadSizeGB)) ГБ", systemImage: "arrow.down.circle.fill")
+                    .font(LumaType.body.weight(.semibold))
                     .foregroundStyle(LumaColor.onAccent)
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, LumaSpacing.xxs)
             }
             .lumaGlassProminentButtonStyle()
+            .controlSize(.large)
             .disabled(!model!.isCompatibleWithDevice)
         case .downloading, .verifying:
             Button {
@@ -137,24 +142,30 @@ struct ModelDetailView: View {
             } label: {
                 Label("Показать загрузку", systemImage: "arrow.down.circle")
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, LumaSpacing.xxs)
             }
             .lumaGlassButtonStyle()
+            .controlSize(.large)
         case .installed:
             Button(role: .destructive) {
                 deleteModel()
             } label: {
                 Label("Удалить модель", systemImage: "trash")
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, LumaSpacing.xxs)
             }
             .lumaGlassButtonStyle()
+            .controlSize(.large)
         case .failed:
             Button {
                 path.append(Route.modelDownload(model!.id))
             } label: {
                 Label("Повторить загрузку", systemImage: "arrow.clockwise")
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, LumaSpacing.xxs)
             }
             .lumaGlassProminentButtonStyle()
+            .controlSize(.large)
         }
     }
 
