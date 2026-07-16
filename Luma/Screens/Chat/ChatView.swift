@@ -45,10 +45,8 @@ struct ChatView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            messageScroll
-            inputBar
-        }
+        messageScroll
+        .safeAreaInset(edge: .bottom) { inputBar }
         .background(LumaColor.canvas.ignoresSafeArea())
         .navigationTitle(navTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -105,6 +103,7 @@ struct ChatView: View {
                 .padding(.top, LumaSpacing.md)
                 .padding(.bottom, LumaSpacing.sm)
             }
+            .modifier(SoftBottomScrollEdge())
             .onChange(of: messages.count) { _, _ in
                 if let last = messages.last {
                     withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
@@ -148,13 +147,14 @@ struct ChatView: View {
         }
     }
 
-    /// Three independent OPAQUE elements, exactly like the iOS 27 Siri
-    /// reference (dark-gray circles and pill on black; white on light).
-    /// Deliberately no Liquid Glass here: every glass view renders its own
-    /// backdrop-sampling region, and the union of three of them showed up
-    /// as the full-width "strip" under the bar on real builds — reported
-    /// three times. Opaque `canvasElevated` fills can't produce that
-    /// artifact, and they're what the reference actually shows.
+    /// Three independent glass elements floating over the message scroll
+    /// (which runs underneath via `safeAreaInset` and fades into the
+    /// `.soft` progressive-blur scroll edge — see `SoftBottomScrollEdge`).
+    /// No shared container/backdrop: `GlassEffectContainer` at these gaps
+    /// fuses the shapes into a full-width slab, and the `automatic` scroll
+    /// edge next to glass picks the "hard" dark band — both artifacts the
+    /// user rejected. `.controlSize(.large)` sizes the drawn circles;
+    /// a `.frame()` would only pad the layout box.
     private var inputBar: some View {
         HStack(alignment: .center, spacing: LumaSpacing.xs) {
             Menu {
@@ -171,11 +171,10 @@ struct ChatView: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(LumaColor.textPrimary)
-                    .frame(width: 44, height: 44)
-                    .background(LumaColor.canvasElevated, in: Circle())
             }
-            .buttonStyle(.plain)
+            .buttonBorderShape(.circle)
+            .lumaGlassButtonStyle()
+            .controlSize(.large)
 
             TextField("Спросите что-нибудь", text: $draft, axis: .vertical)
                 .font(LumaType.body)
@@ -183,7 +182,7 @@ struct ChatView: View {
                 .focused($inputFocused)
                 .padding(.horizontal, LumaSpacing.md)
                 .padding(.vertical, LumaSpacing.sm)
-                .background(LumaColor.canvasElevated, in: Capsule())
+                .glassSurface(cornerRadius: LumaRadius.pill)
 
             Button {
                 if isGenerating {
@@ -194,11 +193,11 @@ struct ChatView: View {
             } label: {
                 Image(systemName: isGenerating ? "stop.fill" : "arrow.up")
                     .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(isGenerating || canSend ? LumaColor.onAccent : LumaColor.textTertiary)
-                    .frame(width: 44, height: 44)
-                    .background(isGenerating || canSend ? AnyShapeStyle(LumaColor.accent) : AnyShapeStyle(LumaColor.canvasElevated), in: Circle())
+                    .foregroundStyle(LumaColor.onAccent)
             }
-            .buttonStyle(.plain)
+            .buttonBorderShape(.circle)
+            .lumaGlassProminentButtonStyle(tint: isGenerating || canSend ? LumaColor.accent : LumaColor.textTertiary.opacity(0.3))
+            .controlSize(.large)
             .disabled(!isGenerating && !canSend)
         }
         .padding(.horizontal, LumaSpacing.md)

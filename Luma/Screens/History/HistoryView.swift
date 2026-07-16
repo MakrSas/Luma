@@ -48,6 +48,7 @@ struct HistoryView: View {
                     .padding(.top, LumaSpacing.xl)
             }
         }
+        .modifier(SoftBottomScrollEdge())
         .background(LumaColor.canvas.ignoresSafeArea())
         .safeAreaInset(edge: .top) {
             HStack {

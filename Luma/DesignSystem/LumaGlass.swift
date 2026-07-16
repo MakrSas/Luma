@@ -53,6 +53,22 @@ struct GlassPill: ViewModifier {
     }
 }
 
+/// Forces the iOS 26 bottom scroll-edge effect into its "soft" variant — a
+/// progressive blur that content fades into as it scrolls under bottom
+/// accessories. The automatic variant next to glass elements picks the
+/// "hard" style, which on a black canvas reads as a full-width dark slab
+/// behind the input bar (reported by the user three times before the root
+/// cause was found). No-op before iOS 26.
+struct SoftBottomScrollEdge: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.scrollEdgeEffectStyle(.soft, for: .bottom)
+        } else {
+            content
+        }
+    }
+}
+
 extension View {
     /// Standard glass card surface (buttons, panels, confirmation sheets).
     func glassSurface(cornerRadius: CGFloat = LumaRadius.medium, tint: Color? = nil) -> some View {
